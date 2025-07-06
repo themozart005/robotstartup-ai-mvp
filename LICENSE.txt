@@ -67,9 +67,9 @@ GOVERNING LAW:
 This license is governed by the laws of Washington State, United States without regard to conflict of law principles.
 
 COPYRIGHT NOTICE:
-Copyright (c) 2024 Tennyson Samuel John / LevelUp STEM Academy
+Copyright (c) 2025 Tennyson Samuel John / LevelUp STEM Academy
 703 10th Street, Snohomish WA 98290
 "RoboStartup AI", "LevelUp STEM Academy", and "Makers & Moguls" are trademarks of LevelUp STEM Academy.
 
-Last Updated: December 2024
+Last Updated: July 2025
 License Version: 1.0
