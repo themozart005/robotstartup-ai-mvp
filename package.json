@@ -1,0 +1,13 @@
+{
+  "name": "robostartup-ai-mvp",
+  "version": "1.0.0",
+  "description": "AI-powered educational business simulation game",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm install && npm start",
+    "dev": "cd backend && npm run dev"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

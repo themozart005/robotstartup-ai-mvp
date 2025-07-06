@@ -1,0 +1,75 @@
+RoboStartup AI Educational Platform
+Copyright (c) 2024 Tennyson Samuel John / LevelUp STEM Academy. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+IMPORTANT: READ CAREFULLY BEFORE ACCESSING, DOWNLOADING, OR USING THIS SOFTWARE.
+
+By accessing this repository or using this software, you acknowledge that you have read, understood, and agree to be bound by the terms of this license.
+
+GRANT OF LICENSE:
+LevelUp STEM Academy ("Licensor") grants you a limited, non-exclusive, non-transferable license to use this software solely for the purposes specified below.
+
+PERMITTED USES:
+✅ Educational evaluation by licensed educators and educational institutions
+✅ Beta testing as an authorized participant in Level Up Education's beta program
+✅ Academic research and review for educational purposes
+✅ Classroom instruction in authorized educational settings
+✅ Personal evaluation for potential institutional adoption
+
+PROHIBITED USES:
+❌ Commercial use, sale, or redistribution of any kind
+❌ Creating derivative works or competing educational platforms
+❌ Reverse engineering, decompiling, or disassembling
+❌ Removing, altering, or obscuring copyright notices or license terms
+❌ Sublicensing or transferring rights to third parties
+❌ Using for non-educational commercial training programs
+❌ Integrating into commercial products or services
+❌ Public distribution or hosting on other platforms
+
+INTELLECTUAL PROPERTY:
+- All source code, algorithms, educational content, AI business logic, AI tutoring systems, and multiplayer game technologies are proprietary and confidential
+- This license does not grant any rights to trademarks, trade names, or service marks including "Makers & Moguls"
+- All improvements, modifications, or feedback become the property of LevelUp STEM Academy
+- You acknowledge that the software contains valuable trade secrets and confidential information
+
+BETA TESTING PROVISIONS:
+- Beta testers may use the software in educational settings for evaluation purposes
+- Usage data, feedback, and performance metrics become property of LevelUp STEM Academy
+- Beta access may be revoked at any time without notice
+- Beta testers agree to provide constructive feedback and report issues
+- No warranty or support guarantees are provided during beta testing
+
+EDUCATIONAL USE REQUIREMENTS:
+- Must be used in bona fide educational settings (K-12, higher education, homeschool)
+- Commercial training companies require separate commercial licensing
+- Must maintain attribution to LevelUp STEM Academy in all educational materials
+- May not be used to compete with LevelUp STEM Academy's services
+
+DATA AND PRIVACY:
+- LevelUp STEM Academy retains rights to aggregate, anonymized usage data
+- No personal student information is collected without explicit consent
+- Educational institutions remain data controllers for their student data
+- Usage must comply with COPPA, FERPA, and applicable privacy regulations
+
+TERMINATION:
+This license automatically terminates if you violate any terms. Upon termination, you must immediately cease all use and delete all copies of the software.
+
+COMMERCIAL LICENSING:
+For commercial use, enterprise licensing, or rights beyond those granted herein, contact:
+Email: tjohn@levelupstem.academy
+Subject: Commercial License Inquiry - RoboStartup AI
+
+DISCLAIMER:
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL LEVELUP STEM ACADEMY BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+
+GOVERNING LAW:
+This license is governed by the laws of Washington State, United States without regard to conflict of law principles.
+
+COPYRIGHT NOTICE:
+Copyright (c) 2024 Tennyson Samuel John / LevelUp STEM Academy
+703 10th Street, Snohomish WA 98290
+"RoboStartup AI", "LevelUp STEM Academy", and "Makers & Moguls" are trademarks of LevelUp STEM Academy.
+
+Last Updated: December 2024
+License Version: 1.0

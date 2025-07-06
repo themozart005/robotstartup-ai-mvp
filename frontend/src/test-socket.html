@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Test</title>
+</head>
+<body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Testing...</div>
+    <div id="logs"></div>
+
+    <script src="http://localhost:5000/socket.io/socket.io.js"></script>
+    <script>
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            console.log(message);
+            logsDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+
+        try {
+            log('Creating socket connection...');
+            
+            const socket = io('http://localhost:5000', {
+                transports: ['polling'],
+                timeout: 5000,
+                forceNew: true
+            });
+
+            socket.on('connect', () => {
+                log('✅ Connected! Socket ID: ' + socket.id);
+                statusDiv.innerHTML = '✅ Connected!';
+                statusDiv.style.color = 'green';
+            });
+
+            socket.on('connect_error', (error) => {
+                log('❌ Connection error: ' + error.message);
+                statusDiv.innerHTML = '❌ Connection failed';
+                statusDiv.style.color = 'red';
+            });
+
+            socket.on('disconnect', (reason) => {
+                log('🔌 Disconnected: ' + reason);
+                statusDiv.innerHTML = '🔌 Disconnected';
+                statusDiv.style.color = 'orange';
+            });
+
+        } catch (error) {
+            log('💥 Exception: ' + error.message);
+            statusDiv.innerHTML = '💥 Exception occurred';
+            statusDiv.style.color = 'red';
+        }
+    </script>
+</body>
+</html>

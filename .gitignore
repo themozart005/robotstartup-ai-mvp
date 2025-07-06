@@ -1,0 +1,337 @@
+# =======================
+# LEVELUP STEM ACADEMY
+# RoboStartup AI Platform
+# Comprehensive .gitignore
+# =======================
+
+# ===== SENSITIVE CONFIGURATION =====
+# Environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# API Keys and tokens
+*.key
+*.pem
+*.p12
+*.crt
+secrets/
+config/secrets.js
+config/production.js
+
+# Authentication files
+auth-config.json
+firebase-admin-sdk.json
+google-service-account.json
+
+# ===== PROPRIETARY ALGORITHMS =====
+# Keep core business logic private
+src/algorithms/
+src/ai-core/
+src/ai-business-logic/
+src/ai-tutoring-engine/
+src/multiplayer-engine/
+src/analytics-engine/
+src/ml-models/
+src/proprietary/
+
+# Educational content IP (Makers & Moguls)
+content/prompts/
+content/curricula/
+content/assessments/
+content/ai-training/
+content/makers-moguls/
+educational-datasets/
+
+# Game mechanics and formulas
+game-engine/core/
+difficulty-algorithms/
+scoring-systems/
+multiplayer-logic/
+
+# ===== BUSINESS DATA =====
+# User analytics and metrics
+data/user-analytics/
+data/performance-metrics/
+data/beta-feedback/
+logs/business-intelligence/
+reports/confidential/
+
+# Customer information
+customer-data/
+beta-testers/
+institution-contacts/
+
+# Financial and legal documents
+contracts/
+invoices/
+legal-docs/
+
+# ===== DEVELOPMENT FILES =====
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+.nyc_output
+
+# ===== BUILD OUTPUTS =====
+# Frontend build outputs
+frontend/build/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# Backend build outputs
+backend/build/
+backend/dist/
+backend/lib/
+
+# Static files
+public/uploads/
+public/generated/
+static/temp/
+
+# ===== LOGS =====
+# Application logs
+logs/
+*.log
+combined.log
+error.log
+access.log
+
+# PM2 logs
+.pm2/
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ===== DATABASES =====
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+database/local/
+
+# Database dumps
+*.sql
+database-backup/
+db-exports/
+
+# ===== CACHING =====
+# Dependency directories
+.cache/
+.parcel-cache/
+
+# Next.js cache
+.next/
+
+# Vite cache
+.vite/
+
+# Webpack cache
+.webpack/
+
+# ===== OPERATING SYSTEM =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.nfs*
+
+# ===== IDEs AND EDITORS =====
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ===== TESTING =====
+# Test outputs
+test-results/
+coverage/
+.nyc_output/
+
+# Jest
+jest.config.local.js
+
+# Playwright
+test-results/
+playwright-report/
+
+# ===== DOCKER =====
+# Docker files (if containing secrets)
+docker-compose.override.yml
+.dockerignore
+
+# ===== CLOUD & DEPLOYMENT =====
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Serverless
+.serverless/
+
+# Kubernetes secrets
+k8s-secrets/
+
+# ===== EDUCATIONAL CONTENT =====
+# Proprietary learning materials
+curriculum/proprietary/
+assessments/answer-keys/
+teacher-guides/restricted/
+ai-prompts/production/
+
+# Student data (NEVER commit)
+student-data/
+user-profiles/
+learning-analytics/
+progress-reports/
+
+# ===== RESEARCH & DEVELOPMENT =====
+# Research notes and prototypes
+research/confidential/
+prototypes/internal/
+experiments/proprietary/
+
+# AI model training data
+training-data/
+model-weights/
+fine-tuned-models/
+
+# ===== LICENSES & LEGAL =====
+# Don't ignore these - keep them public
+!LICENSE
+!LICENSE.txt
+!COPYING
+!COPYRIGHT
+
+# But ignore confidential legal docs
+legal/confidential/
+contracts/ndas/
+
+# ===== CONFIGURATION SAMPLES =====
+# Keep example configs, ignore real ones
+!config.example.js
+!.env.example
+config.local.js
+
+# ===== TEMPORARY FILES =====
+# Temporary directories
+tmp/
+temp/
+.tmp/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Archive files (unless specifically needed)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ===== MOBILE DEVELOPMENT =====
+# React Native
+.expo/
+.expo-shared/
+
+# ===== PACKAGE MANAGERS =====
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# NPM
+package-lock.json
+npm-shrinkwrap.json
+
+# ===== MONITORING & ANALYTICS =====
+# Error reporting
+.sentry/
+
+# Performance monitoring
+.lighthouse/
+
+# ===== CUSTOM PROJECT SPECIFIC =====
+# Add any specific files for your project
+docs/internal/
+planning/confidential/
+competitor-analysis/
+
+# Beta testing feedback (confidential)
+feedback/detailed/
+user-interviews/
+
+# ===== KEEP THESE PUBLIC =====
+# Important: Use ! to force include critical files
+!README.md
+!SECURITY.md
+!CONTRIBUTING.md
+!docs/public/
+!examples/
+!.github/workflows/
+
+# ===== END OF GITIGNORE =====
+# Last updated: December 2024
+# LevelUp STEM Academy - RoboStartup AI
+# Part of Makers & Moguls Educational Series
