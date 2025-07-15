@@ -16,7 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useGameStore } from '../store/GameStore';
-import { useProgressStore } from '../store/progressStore';
+import { useProgressStore } from '../store/ProgressStore';
 
 interface AITutorModalProps {
   concept: string;
