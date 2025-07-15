@@ -19,7 +19,7 @@ import { useGameStore } from './store/GameStore';
 import { useProgressStore } from './store/ProgressStore';
 
 // Import our services
-import { socketService } from './services/socketService';
+import { socketService } from './services/SocketService';
 
 // Import global styles
 import './styles/globals.css';
