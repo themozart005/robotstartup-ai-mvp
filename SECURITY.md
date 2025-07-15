@@ -172,7 +172,7 @@ Compliance Officer: tjohn@levelupstem.academy
 Emergency Security Incidents
 For critical security incidents affecting student data or platform availability:
 
-Emergency Contact: +1 (425) 555-0199
+Emergency Contact: +1 (386) 451-9981
 Escalation: Immediate notification to Tennyson Samuel John
 Business Address: 703 10th Street, Snohomish WA 98290
 
@@ -191,8 +191,8 @@ Common Sense Privacy Program: [External resource link]
 EdTech Privacy Standards: [External resource link]
 
 
-Last Updated: December 2024
-Next Review: March 2025
+Last Updated: July 2025
+Next Review: October 2025
 Version: 1.0
 
 LevelUp STEM Academy is committed to maintaining the highest security standards to protect our educational community. Thank you for helping us create a safe learning environment for students worldwide.
