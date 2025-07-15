@@ -76,7 +76,8 @@ const HomePage: React.FC = () => {
       localStorage.setItem('playerName', playerName.trim());
       
       // FIXED: Use full URL with backend port
-      const response = await fetch('http://localhost:5000/api/game/create', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+	  const response = await fetch(`${apiUrl}/api/game/create`,  {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
