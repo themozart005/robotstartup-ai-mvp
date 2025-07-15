@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 
 // Import our stores and services
-import { useGameStore } from '../store/gameStore';
-import { useProgressStore } from '../store/progressStore';
-import { socketService } from '../services/socketService';
+import { useGameStore } from '../store/GameStore';
+import { useProgressStore } from '../store/ProgressStore';
+import { socketService } from '../services/SocketService';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
