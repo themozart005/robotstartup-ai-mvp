@@ -15,7 +15,7 @@ import ProgressDashboard from './pages/ProgressDashboard';
 import HelpCenter from './pages/HelpCenter';
 
 // Import our global state management
-import { useGameStore } from './store/gameStore';
+import { useGameStore } from './store/GameStore';
 import { useProgressStore } from './store/progressStore';
 
 // Import our services
