@@ -16,7 +16,7 @@ import HelpCenter from './pages/HelpCenter';
 
 // Import our global state management
 import { useGameStore } from './store/GameStore';
-import { useProgressStore } from './store/progressStore';
+import { useProgressStore } from './store/ProgressStore';
 
 // Import our services
 import { socketService } from './services/socketService';
