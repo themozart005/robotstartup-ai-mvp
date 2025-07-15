@@ -6,6 +6,18 @@ const logger = require('../utils/logger');
 
 class AIService {
   constructor() {
+    // Check if API key is configured FIRST
+    if (!process.env.OPENAI_API_KEY) {
+      logger.warn('OpenAI API key not configured. AI features will be disabled.');
+      this.isEnabled = false;
+      this.openai = null; // Don't create OpenAI client
+      this.preferredModel = 'gpt-4';
+      this.fallbackModel = 'gpt-3.5-turbo';
+      this.currentModel = this.preferredModel;
+      return; // Exit constructor early
+    }
+
+    // Only create OpenAI client if API key exists
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
@@ -15,24 +27,18 @@ class AIService {
     this.fallbackModel = 'gpt-3.5-turbo';
     this.currentModel = this.preferredModel;
     
-    // Check if API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      logger.warn('OpenAI API key not configured. AI features will be disabled.');
-      this.isEnabled = false;
-    } else {
-      this.isEnabled = true;
-      logger.info(`✅ AI Service initialized with OpenAI (preferred model: ${this.preferredModel})`);
-      
-      // Test connection on startup
-      this.testConnection();
-    }
+    this.isEnabled = true;
+    logger.info(`✅ AI Service initialized with OpenAI (preferred model: ${this.preferredModel})`);
+    
+    // Test connection on startup
+    this.testConnection();
   }
 
   /**
    * Make AI request with automatic fallback
    */
   async makeAIRequest(messages, options = {}) {
-    if (!this.isEnabled) {
+    if (!this.isEnabled || !this.openai) {
       throw new Error('AI service is disabled');
     }
 
@@ -84,7 +90,7 @@ class AIService {
    * Generate a market event based on game state
    */
   async generateMarketEvent(gameState) {
-    if (!this.isEnabled) {
+    if (!this.isEnabled || !this.openai) {
       return this.getFallbackMarketEvent();
     }
 
@@ -151,7 +157,7 @@ Example format:
    * Generate personalized tutoring response
    */
   async generateTutoringResponse(concept, context) {
-    if (!this.isEnabled) {
+    if (!this.isEnabled || !this.openai) {
       return this.getFallbackTutoringResponse(concept);
     }
 
@@ -365,7 +371,7 @@ Use encouraging, positive language. Be specific about their current situation. K
    * Test the OpenAI connection and model availability
    */
   async testConnection() {
-    if (!this.isEnabled) {
+    if (!this.isEnabled || !this.openai) {
       return { success: false, message: 'OpenAI API key not configured' };
     }
 
@@ -405,7 +411,7 @@ Use encouraging, positive language. Be specific about their current situation. K
    * Check if AI service is enabled and working
    */
   isAvailable() {
-    return this.isEnabled;
+    return this.isEnabled && this.openai !== null;
   }
 
   /**
@@ -414,6 +420,7 @@ Use encouraging, positive language. Be specific about their current situation. K
   getStatus() {
     return {
       enabled: this.isEnabled,
+      clientInitialized: this.openai !== null,
       currentModel: this.currentModel,
       preferredModel: this.preferredModel,
       fallbackModel: this.fallbackModel,
