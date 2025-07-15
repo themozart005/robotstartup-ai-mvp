@@ -15,7 +15,7 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
-import { Player, gameHelpers } from '../store/gameStore';
+import { Player, gameHelpers } from '../store/GameStore';
 
 interface PlayerCardProps {
   player: Player;
