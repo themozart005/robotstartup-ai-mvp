@@ -22,9 +22,9 @@ import {
 import toast from 'react-hot-toast';
 
 // Import our stores and services
-import { useGameStore, gameHelpers } from '../store/gameStore';
-import { useProgressStore } from '../store/progressStore';
-import { socketService } from '../services/socketService';
+import { useGameStore, gameHelpers } from '../store/GameStore';
+import { useProgressStore } from '../store/ProgressStore';
+import { socketService } from '../services/SocketService';
 
 // Import game components
 import PlayerCard from '../components/PlayerCard';
