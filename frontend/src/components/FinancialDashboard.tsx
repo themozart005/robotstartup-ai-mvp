@@ -19,7 +19,7 @@ import {
   Download,
   Calendar
 } from 'lucide-react';
-import { Player, GameEvent, gameHelpers } from '../store/gameStore';
+import { Player, GameEvent, gameHelpers } from '../store/GameStore';
 
 interface FinancialDashboardProps {
   player: Player;

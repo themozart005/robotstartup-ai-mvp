@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   HelpCircle
 } from 'lucide-react';
-import { Technology, gameHelpers } from '../store/gameStore';
+import { Technology, gameHelpers } from '../store/GameStore';
 
 interface TechnologyLabProps {
   technologies: Technology[];

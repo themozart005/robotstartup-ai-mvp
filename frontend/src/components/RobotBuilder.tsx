@@ -15,7 +15,7 @@ import {
   CheckCircle,
   HelpCircle
 } from 'lucide-react';
-import { Robot, gameHelpers } from '../store/gameStore';
+import { Robot, gameHelpers } from '../store/GameStore';
 
 interface RobotBuilderProps {
   robots: Robot[];

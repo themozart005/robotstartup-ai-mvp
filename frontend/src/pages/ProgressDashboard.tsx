@@ -20,7 +20,7 @@ import {
   Download,
   Share2
 } from 'lucide-react';
-import { useProgressStore } from '../store/progressStore';
+import { useProgressStore } from '../store/ProgressStore';
 
 const ProgressDashboard: React.FC = () => {
   const navigate = useNavigate();

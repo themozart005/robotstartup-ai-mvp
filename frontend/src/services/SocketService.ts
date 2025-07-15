@@ -168,7 +168,7 @@ class SocketService {
    */
   private async notifyConnectionStatus(connected: boolean) {
     try {
-      const { useGameStore } = await import('../store/gameStore');
+      const { useGameStore } = await import('../store/GameStore');
       useGameStore.getState().setConnectionStatus(connected);
     } catch (error) {
       console.error('Failed to notify connection status:', error);
@@ -354,7 +354,7 @@ class SocketService {
    */
   private async updateGameStore(method: string, data: any) {
     try {
-      const { useGameStore } = await import('../store/gameStore');
+      const { useGameStore } = await import('../store/GameStore');
       const store = useGameStore.getState();
       
       if (typeof store[method as keyof typeof store] === 'function') {
@@ -370,7 +370,7 @@ class SocketService {
    */
   private async checkIfMyTurn(activePlayerId: string) {
     try {
-      const { useGameStore } = await import('../store/gameStore');
+      const { useGameStore } = await import('../store/GameStore');
       const myPlayer = useGameStore.getState().getMyPlayer();
       
       if (myPlayer && activePlayerId === myPlayer.id) {
@@ -386,7 +386,7 @@ class SocketService {
    */
   private async checkGameWinner(winner: any) {
     try {
-      const { useGameStore } = await import('../store/gameStore');
+      const { useGameStore } = await import('../store/GameStore');
       const myPlayer = useGameStore.getState().getMyPlayer();
       
       if (winner && myPlayer) {

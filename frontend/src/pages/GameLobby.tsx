@@ -19,8 +19,8 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
-import { socketService } from '../services/socketService';
+import { useGameStore } from '../store/GameStore';
+import { socketService } from '../services/SocketService';
 
 interface ActiveGame {
   id: string;

@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../store/GameStore';
 import { useProgressStore } from '../store/progressStore';
 
 interface AITutorModalProps {

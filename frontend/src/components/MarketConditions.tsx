@@ -14,7 +14,7 @@ import {
   Zap,
   Globe
 } from 'lucide-react';
-import { MarketConditions as MarketConditionsType } from '../store/gameStore';
+import { MarketConditions as MarketConditionsType } from '../store/GameStore';
 
 interface MarketConditionsProps {
   conditions: MarketConditionsType;

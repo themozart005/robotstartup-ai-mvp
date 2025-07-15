@@ -17,7 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Player, GameSettings } from '../store/gameStore';
+import { Player, GameSettings } from '../store/GameStore';
 
 interface GamePhasePanelProps {
   phase: 'startup' | 'r&d' | 'production' | 'sales' | 'investment';
