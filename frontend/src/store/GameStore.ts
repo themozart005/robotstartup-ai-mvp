@@ -208,7 +208,7 @@ export const useGameStore = create<GameStore>()(
     initializeSocketHandlers: async () => {
       try {
         // FIXED: Use dynamic import instead of require()
-        const { SocketService } = await import('../services/SocketService');
+        const { socketService } = await import('../services/SocketService');
         const handlers = new Map();
 
         // Handler for game state updates
@@ -302,7 +302,7 @@ export const useGameStore = create<GameStore>()(
 
         // Register with socket service
         handlers.forEach((handler, event) => {
-          SocketService.on(event, handler);
+          socketService.on(event, handler);
         });
 
         set({ socketEventHandlers: handlers });
@@ -314,11 +314,11 @@ export const useGameStore = create<GameStore>()(
 
     cleanupSocketHandlers: async () => {
       try {
-        const { SocketService } = await import('../services/SocketService');
+        const { socketService } = await import('../services/SocketService');
         const handlers = get().socketEventHandlers;
         
         handlers.forEach((handler, event) => {
-          SocketService.off(event, handler);
+          socketService.off(event, handler);
         });
         
         set({ socketEventHandlers: new Map() });
@@ -406,13 +406,13 @@ export const useGameStore = create<GameStore>()(
         set({ isLoading: true });
         console.log('🎮 GameStore: Joining game:', gameId, 'as', playerName);
         
-        const { SocketService } = await import('../services/SocketService');
+        const { socketService } = await import('../services/SocketService');
         
         if (get().socketEventHandlers.size === 0) {
           await get().initializeSocketHandlers();
         }
         
-        SocketService.joinGame(gameId, playerName);
+        socketService.joinGame(gameId, playerName);
         console.log('📡 GameStore: Join request sent via socket');
         
       } catch (error) {
@@ -446,8 +446,8 @@ export const useGameStore = create<GameStore>()(
       try {
         set({ isProcessingMove: true, pendingMove: move });
         
-        const { SocketService } = await import('../services/SocketService');
-        SocketService.makeMove(currentGame.id, move);
+        const { socketService } = await import('../services/SocketService');
+        socketService.makeMove(currentGame.id, move);
         
         console.log('🎯 GameStore: Move sent via socket:', move);
         
@@ -463,8 +463,8 @@ export const useGameStore = create<GameStore>()(
         const { currentGame } = get();
         if (!currentGame) return;
 
-        const { SocketService } = await import('../services/SocketService');
-        SocketService.requestHelp(currentGame.id, concept, context);
+        const { socketService } = await import('../services/SocketService');
+        socketService.requestHelp(currentGame.id, concept, context);
         
         console.log('🤖 GameStore: AI help requested for:', concept);
         toast.success('AI tutor is preparing your explanation...');
