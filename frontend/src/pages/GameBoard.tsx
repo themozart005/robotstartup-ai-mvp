@@ -1,5 +1,5 @@
 // frontend/src/pages/GameBoard.tsx
-// COMPLETE FIXED VERSION - Proper R&D data handling
+// COMPLETE FIXED VERSION - With game ending and production capacity fixes
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,7 +18,13 @@ import {
   CreditCard,
   Clock,
   Target,
-  Award
+  Award,
+  Building,
+  PieChart,
+  Trophy,
+  Medal,
+  Star,
+  X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -40,7 +46,7 @@ const GameBoard: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   
-  // FIXED: Use store selectors properly for reactive updates
+  // Use store selectors properly for reactive updates
   const currentGame = useGameStore(state => state.currentGame);
   const currentPlayer = useGameStore(state => state.currentPlayer);
   const isMyTurn = useGameStore(state => state.isMyTurn);
@@ -67,8 +73,35 @@ const GameBoard: React.FC = () => {
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [debugInfo, setDebugInfo] = useState('Starting initialization...');
 
-  // FIXED: Force re-render when game state changes
+  // Force re-render when game state changes
   const [updateKey, setUpdateKey] = useState(0);
+
+  // Helper functions for phase display
+  const getPhaseIcon = (phase: string) => {
+    switch (phase) {
+      case 'bootstrap': return '🚀';
+      case 'funding': return '💰';
+      case 'r&d': return '🧪';
+      case 'production': return '🏭';
+      case 'sales': return '📈';
+      case 'growth': return '📊';
+      case 'finished': return '🏁';
+      default: return '⚡';
+    }
+  };
+
+  const getPhaseDescription = (phase: string, round: number) => {
+    switch (phase) {
+      case 'bootstrap': return 'Launch with initial funding';
+      case 'funding': return 'Raise capital to scale';
+      case 'r&d': return round === 1 ? 'Develop MVP & core tech' : 'Advance technology';
+      case 'production': return round === 1 ? 'Build first products' : 'Scale manufacturing';
+      case 'sales': return round === 1 ? 'Prove market demand' : 'Expand market share';
+      case 'growth': return round === 1 ? 'Build foundation' : 'Scale operations';
+      case 'finished': return 'Game completed!';
+      default: return 'Unknown phase';
+    }
+  };
 
   // Force UI update when game state changes
   useEffect(() => {
@@ -79,10 +112,11 @@ const GameBoard: React.FC = () => {
         phase: currentGame.currentPhase,
         round: currentGame.currentRound,
         currentTurn: currentGame.currentPlayerTurn,
-        players: currentGame.players.length
+        players: currentGame.players.length,
+        status: currentGame.status
       });
     }
-  }, [currentGame?.currentPhase, currentGame?.currentPlayerTurn, currentGame?.currentRound]);
+  }, [currentGame?.currentPhase, currentGame?.currentPlayerTurn, currentGame?.currentRound, currentGame?.status]);
 
   // Enhanced initialization with better error handling
   useEffect(() => {
@@ -182,7 +216,7 @@ const GameBoard: React.FC = () => {
         id: gameId!,
         status: 'playing' as const,
         currentRound: 1,
-        currentPhase: 'startup' as const,
+        currentPhase: 'bootstrap' as const,
         currentPlayerTurn: 0,
         gameSettings: {
           maxRounds: 5,
@@ -214,7 +248,11 @@ const GameBoard: React.FC = () => {
               roundsPlayed: 0
             },
             businessModel: null,
-            dealerships: []
+            dealerships: [],
+            equity: 100,
+            fundingRounds: [],
+            marketingEffects: [],
+            growthEffects: []
           },
           {
             id: 'ai-1',
@@ -233,7 +271,11 @@ const GameBoard: React.FC = () => {
               roundsPlayed: 0
             },
             businessModel: null,
-            dealerships: []
+            dealerships: [],
+            equity: 100,
+            fundingRounds: [],
+            marketingEffects: [],
+            growthEffects: []
           }
         ],
         eventHistory: [],
@@ -243,7 +285,7 @@ const GameBoard: React.FC = () => {
       useGameStore.getState().setCurrentGame(fallbackGame);
       useGameStore.getState().setCurrentPlayer('player-1');
       
-      setDebugInfo('✅ Fallback game created');
+      setDebugInfo('✅ Fallback game created with new phase structure');
       toast.info('Playing in offline mode');
     };
 
@@ -258,7 +300,7 @@ const GameBoard: React.FC = () => {
   const phaseInfo = getCurrentPhaseInfo();
   const myPlayer = currentPlayer;
 
-  // FIXED: Debug logging with forced updates
+  // Debug logging with forced updates
   useEffect(() => {
     console.log('🔍 GameBoard Debug - State Update:', {
       updateKey,
@@ -275,7 +317,7 @@ const GameBoard: React.FC = () => {
     });
   }, [updateKey, currentGame, myPlayer, isMyTurn, isConnected, isInitializing, debugInfo]);
 
-  // FIXED: Debug move data function
+  // Debug move data function
   const debugMoveData = (moveData: any) => {
     console.log('🔍 DEBUG: Move data structure:', {
       action: moveData.action,
@@ -298,35 +340,37 @@ const GameBoard: React.FC = () => {
     }
   };
 
-  // Handle requesting AI help
+  // Handle requesting AI help with enhanced context
   const handleAIHelp = (concept: string) => {
     setTutorConcept(concept);
     setShowAITutor(true);
     
     if (currentGame && myPlayer) {
+      const context = {
+        currentPhase: currentGame.currentPhase,
+        playerCash: myPlayer.cash,
+        robotCount: myPlayer.robots.length,
+        round: currentGame.currentRound,
+        equity: myPlayer.equity || 100,
+        fundingRounds: myPlayer.fundingRounds || [],
+        reputation: myPlayer.reputation || 50,
+        marketingEffects: myPlayer.marketingEffects || [],
+        growthEffects: myPlayer.growthEffects || [],
+        companyValuation: gameHelpers.calculateCompanyValuation(myPlayer)
+      };
+      
       if (socketService.isConnected()) {
         console.log('🤖 Requesting real AI help via SocketService');
-        socketService.requestHelp(currentGame.id, concept, {
-          currentPhase: currentGame.currentPhase,
-          playerCash: myPlayer.cash,
-          robotCount: myPlayer.robots.length,
-          round: currentGame.currentRound
-        });
+        socketService.requestHelp(currentGame.id, concept, context);
       } else {
         console.log('📋 Using local AI help (offline mode)');
-        requestAIHelp(concept, {
-          currentPhase: currentGame.currentPhase,
-          playerCash: myPlayer.cash,
-          robotCount: myPlayer.robots.length,
-          round: currentGame.currentRound
-        });
+        requestAIHelp(concept, context);
       }
     }
   };
 
-  // FIXED: Handle making a move with proper R&D data formatting
+  // Handle making a move with proper data formatting
   const handleMakeMove = async (moveData: any) => {
-    // Add debug line first
     debugMoveData(moveData);
     
     if (!canMakeMove()) {
@@ -335,11 +379,9 @@ const GameBoard: React.FC = () => {
     }
     
     try {
-      // FIXED: Ensure proper move data format for R&D phase
       let formattedMoveData = moveData;
       
       if (currentGame?.currentPhase === 'r&d' && moveData.action === 'invest_r&d') {
-        // Ensure technology is properly formatted
         const technology = moveData.technology || moveData.data?.technology || moveData.selectedTechnology;
         
         if (!technology) {
@@ -357,7 +399,6 @@ const GameBoard: React.FC = () => {
         console.log('🧪 R&D Move formatted:', formattedMoveData);
       }
       
-      // Handle production phase
       if (currentGame?.currentPhase === 'production' && moveData.action === 'build_robots') {
         const robotType = moveData.robotType || moveData.data?.robotType;
         const quantity = moveData.quantity || moveData.data?.quantity || 1;
@@ -390,14 +431,15 @@ const GameBoard: React.FC = () => {
       
       setSelectedAction(null);
       
-      // Record concept practice for learning analytics
       if (formattedMoveData.action && currentSession) {
         const conceptMap: Record<string, string> = {
           'invest_r&d': 'innovation-strategy',
           'build_robots': 'production-planning',
           'sell_robots': 'pricing-strategy',
           'take_loan': 'debt-vs-equity',
-          'collect_income': 'cash-flow-management'
+          'collect_income': 'cash-flow-management',
+          'select_funding': 'venture-capital-vs-debt',
+          'invest_marketing': 'growth-strategy'
         };
         
         const concept = conceptMap[formattedMoveData.action];
@@ -409,6 +451,162 @@ const GameBoard: React.FC = () => {
       console.error('❌ Error making move:', error);
       toast.error('Failed to make move. Please try again.');
     }
+  };
+
+  // NEW: Game End Winner Screen Component
+  const WinnerScreen: React.FC = () => {
+    if (!currentGame || currentGame.status !== 'finished' || !currentGame.finalScores) {
+      return null;
+    }
+
+    const winner = currentGame.winner;
+    const isMyWin = winner?.id === myPlayer?.id;
+    const myRank = currentGame.finalScores.findIndex(score => score.player.id === myPlayer?.id) + 1;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-purple-500/30"
+        >
+          {/* Header */}
+          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 text-center">
+            <div className="flex justify-center mb-4">
+              {isMyWin ? (
+                <Trophy className="text-yellow-100" size={64} />
+              ) : (
+                <Award className="text-yellow-200" size={64} />
+              )}
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {isMyWin ? '🎉 Congratulations! You Won!' : '🏁 Game Complete!'}
+            </h1>
+            <p className="text-yellow-100">
+              {isMyWin ? 
+                `Amazing! You built the most successful robotics startup!` :
+                `${winner?.name} built the most successful robotics startup!`
+              }
+            </p>
+            {!isMyWin && (
+              <p className="text-yellow-200 mt-2">
+                You finished in #{myRank} place - Great job!
+              </p>
+            )}
+          </div>
+
+          {/* Final Leaderboard */}
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-white mb-4 text-center">Final Leaderboard</h2>
+            
+            <div className="space-y-3 mb-6">
+              {currentGame.finalScores.map((score, index) => {
+                const isMe = score.player.id === myPlayer?.id;
+                const isWinner = index === 0;
+                
+                return (
+                  <motion.div
+                    key={score.player.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`p-4 rounded-lg border-2 ${
+                      isMe 
+                        ? 'border-yellow-400 bg-yellow-500/20' 
+                        : isWinner 
+                        ? 'border-purple-400 bg-purple-500/20'
+                        : 'border-gray-600 bg-gray-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                          isWinner ? 'bg-yellow-500 text-yellow-900' : 'bg-gray-600 text-white'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-semibold ${isMe ? 'text-yellow-300' : 'text-white'}`}>
+                              {score.player.name}
+                            </span>
+                            {isMe && <span className="text-xs bg-yellow-500 text-yellow-900 px-2 py-1 rounded">YOU</span>}
+                            {score.player.type === 'ai' && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">AI</span>}
+                          </div>
+                          <div className="text-sm text-gray-300">
+                            {score.equity?.toFixed(1)}% equity • {score.totalFunding ? `$${score.totalFunding.toLocaleString()} raised` : 'Bootstrapped'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-400">
+                          {gameHelpers.formatCurrency(score.score)}
+                        </div>
+                        <div className="text-sm text-gray-400">
+                          Net Worth: {gameHelpers.formatCurrency(score.netWorth)}
+                        </div>
+                        <div className="text-xs text-purple-400">
+                          Valuation: {gameHelpers.formatCurrency(score.companyValuation)}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Game Stats */}
+            <div className="bg-gray-800/30 rounded-lg p-4 mb-6">
+              <h3 className="text-lg font-semibold text-white mb-3">Game Summary</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">{currentGame.gameSettings.maxRounds}</div>
+                  <div className="text-gray-400">Rounds Played</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{currentGame.players.length}</div>
+                  <div className="text-gray-400">Total Players</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-400">
+                    {currentGame.players.filter(p => p.type === 'human').length}
+                  </div>
+                  <div className="text-gray-400">Human Players</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-400">
+                    {Math.round((Date.now() - new Date(currentGame.createdAt || Date.now()).getTime()) / 60000)}
+                  </div>
+                  <div className="text-gray-400">Minutes Played</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => setShowFinancials(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <BarChart3 size={20} />
+                View Detailed Results
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                <Star size={20} />
+                Play Again
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
   };
 
   // Show initialization screen
@@ -482,7 +680,34 @@ const GameBoard: React.FC = () => {
     );
   }
 
-  // FIXED: Main game interface with proper state reactivity
+  // FIXED: Show winner screen if game is finished
+  if (currentGame.status === 'finished') {
+    return (
+      <div>
+        <WinnerScreen />
+        {/* Still render modals for detailed results */}
+        <AnimatePresence>
+          {showFinancials && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <div className="flex justify-between items-center p-4 border-b">
+                  <h2 className="text-xl font-bold">Final Financial Results</h2>
+                  <button onClick={() => setShowFinancials(false)}>
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="p-4 overflow-y-auto max-h-[80vh]">
+                  <FinancialDashboard playerId={myPlayer.id} />
+                </div>
+              </div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Main game interface with proper state reactivity
   return (
     <div key={updateKey} className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
       {/* Game Header */}
@@ -497,8 +722,10 @@ const GameBoard: React.FC = () => {
               <h1 className="text-2xl font-bold">🤖 RoboStartup AI</h1>
               <p className="text-blue-200">
                 Round {currentGame.currentRound} of {currentGame.gameSettings.maxRounds} • 
-                Phase: <span className="font-semibold text-yellow-300">{currentGame.currentPhase}</span> • 
-                Industry: {currentGame.gameSettings.industry}
+                Phase: <span className="font-semibold text-yellow-300">
+                  {getPhaseIcon(currentGame.currentPhase)} {currentGame.currentPhase}
+                </span> • 
+                {getPhaseDescription(currentGame.currentPhase, currentGame.currentRound)}
               </p>
             </div>
           </div>
@@ -553,7 +780,14 @@ const GameBoard: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="text-green-400" size={16} />
-                <span className="text-green-200 text-sm">Make your move</span>
+                <span className="text-green-200 text-sm">
+                  {currentGame.currentPhase === 'bootstrap' && 'Collect bootstrap funding'}
+                  {currentGame.currentPhase === 'funding' && 'Choose funding strategy'}
+                  {currentGame.currentPhase === 'r&d' && 'Invest in technology'}
+                  {currentGame.currentPhase === 'production' && 'Build robots'}
+                  {currentGame.currentPhase === 'sales' && 'Sell products'}
+                  {currentGame.currentPhase === 'growth' && 'Scale your business'}
+                </span>
               </div>
             </div>
           </motion.div>
@@ -617,6 +851,20 @@ const GameBoard: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between text-gray-300">
+                <span>Equity:</span>
+                <span className={`font-semibold ${
+                  (myPlayer.equity || 100) >= 51 ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {myPlayer.equity || 100}%
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-300">
+                <span>Valuation:</span>
+                <span className="text-purple-400">
+                  {gameHelpers.formatCurrency(gameHelpers.calculateCompanyValuation(myPlayer))}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-300">
                 <span>Robots:</span>
                 <span>{myPlayer.robots.filter(r => !r.sold).length} active</span>
               </div>
@@ -637,6 +885,7 @@ const GameBoard: React.FC = () => {
             player={myPlayer}
             gameSettings={currentGame.gameSettings}
             marketConditions={currentGame.marketConditions}
+            currentRound={currentGame.currentRound}
             isMyTurn={isMyTurn}
             canMakeMove={canMakeMove()}
             onMakeMove={handleMakeMove}
@@ -679,7 +928,11 @@ const GameBoard: React.FC = () => {
             <RobotBuilder
               robots={myPlayer.robots}
               cash={myPlayer.cash}
-              productionCapacity={gameHelpers.getProductionCapacity ? gameHelpers.getProductionCapacity(myPlayer, currentGame.gameSettings.difficulty) : 3}
+              // FIXED: Pass currentRound for scalable production capacity
+              productionCapacity={gameHelpers.calculateProductionCapacity ? 
+                gameHelpers.calculateProductionCapacity(myPlayer, currentGame.currentRound) : 
+                3
+              }
               robotsBuiltThisRound={myPlayer.robotsBuiltThisRound}
               onBuildRobot={(robotData) => handleMakeMove({ action: 'build_robots', data: robotData })}
               onRequestHelp={() => handleAIHelp('production-planning')}
@@ -725,19 +978,28 @@ const GameBoard: React.FC = () => {
             gameContext={{
               phase: currentGame.currentPhase,
               playerCash: myPlayer.cash,
-              round: currentGame.currentRound
+              round: currentGame.currentRound,
+              equity: myPlayer.equity || 100,
+              fundingHistory: myPlayer.fundingRounds || [],
+              companyValuation: gameHelpers.calculateCompanyValuation(myPlayer)
             }}
           />
         )}
 
         {showFinancials && (
-          <FinancialDashboard
-            player={myPlayer}
-            gameHistory={currentGame.eventHistory}
-            isOpen={showFinancials}
-            onClose={() => setShowFinancials(false)}
-            onRequestHelp={handleAIHelp}
-          />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h2 className="text-xl font-bold">Financial Dashboard</h2>
+                <button onClick={() => setShowFinancials(false)}>
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto max-h-[80vh]">
+                <FinancialDashboard playerId={myPlayer.id} />
+              </div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </div>

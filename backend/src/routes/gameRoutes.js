@@ -1,6 +1,5 @@
 // backend/src/routes/gameRoutes.js
-// These are the API endpoints that handle game-related requests
-// Think of them as different service counters at a bank - each handles specific tasks
+// UPDATED VERSION - With funding action support
 
 const express = require('express');
 const router = express.Router();
@@ -205,6 +204,31 @@ router.post('/:gameId/move', [
     const { gameId } = req.params;
     const { playerId, move } = req.body;
     
+    // UPDATED: Check if action is allowed
+    const allowedActions = [
+	  'collect_income',          // Bootstrap phase (Round 1)
+      'select_funding',          // Funding phase (Round 2+) - NEW
+      'invest_r&d',             // R&D phase
+      'build_robots',           // Production phase  
+      'sell_robots',            // Sales phase
+      'invest_marketing',       // Growth phase (all rounds) - NEW
+      'take_loan',              // Funding phase (Round 2+)
+      'skip_bootstrap',         // Skip bootstrap - NEW
+      'skip_funding',           // Skip funding - NEW
+      'skip_r&d',              // Skip R&D
+      'skip_production',        // Skip production
+      'skip_sales',            // Skip sales
+      'skip_growth',           // Skip growth - NEW
+      'skip_phase'             // Generic skip
+	];
+    
+    if (!allowedActions.includes(move.action)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid action: ${move.action}. Allowed actions are: ${allowedActions.join(', ')}`
+      });
+    }
+    
     const gameManager = req.gameManager;
     const result = await gameManager.processPlayerMove(gameId, playerId, move);
     
@@ -327,7 +351,10 @@ router.post('/:gameId/ai-help', [
       playerStats: player.stats,
       currentCash: player.cash,
       gamePhase: game.currentPhase,
-      difficulty: game.gameSettings.difficulty
+      difficulty: game.gameSettings.difficulty,
+      // NEW: Add equity context for funding concepts
+      equity: player.equity || 100,
+      fundingRounds: player.fundingRounds || []
     });
     
     logger.info(`AI tutoring provided for concept: ${concept} to player: ${playerId}`);
@@ -385,7 +412,12 @@ router.get('/:gameId/stats', [
         robotCount: player.robots.length,
         techCount: player.technologies.length,
         reputation: player.reputation,
-        stats: player.stats
+        stats: player.stats,
+        // NEW: Include equity and funding info
+        equity: player.equity || 100,
+        fundingRounds: player.fundingRounds || [],
+        valuation: gameManager.calculateCompanyValuation ? 
+          gameManager.calculateCompanyValuation(player) : null
       })),
       marketConditions: game.marketConditions,
       eventHistory: game.eventHistory.slice(-5) // Last 5 events
@@ -449,7 +481,10 @@ router.delete('/:gameId', [
         name: p.name,
         finalCash: p.cash,
         robotsProduced: p.stats.totalProduction,
-        totalRevenue: p.stats.totalRevenue
+        totalRevenue: p.stats.totalRevenue,
+        finalEquity: p.equity || 100,
+        fundingRaised: p.fundingRounds ? 
+          p.fundingRounds.reduce((sum, round) => sum + round.amount, 0) : 0
       }))
     });
     
@@ -507,35 +542,3 @@ router.get('/active', async (req, res) => {
 });
 
 module.exports = router;
-
-/**
- * EXPLANATION FOR BEGINNERS:
- * 
- * These routes are like different service windows at a bank or DMV. Each route
- * handles a specific type of request from the frontend:
- * 
- * 1. CREATE GAME: Sets up a new game session
- * 2. JOIN GAME: Adds a player to an existing game
- * 3. START GAME: Begins gameplay after setup
- * 4. GET GAME STATE: Checks current game status
- * 5. MAKE MOVE: Processes a player's action
- * 6. GET MARKET INFO: Provides business context
- * 7. AI HELP: Gets tutoring from AI
- * 8. GET STATS: Shows game analytics
- * 9. DELETE GAME: Ends a game session
- * 10. LIST GAMES: Shows available games to join
- * 
- * KEY CONCEPTS:
- * - VALIDATION: Checking that requests have all required information
- * - ERROR HANDLING: Gracefully dealing with problems
- * - WEBSOCKET EVENTS: Sending real-time updates to all players
- * - GAME MANAGER: Using our game logic service
- * - AI SERVICE: Calling our AI features
- * 
- * Each route follows the same pattern:
- * 1. Validate the incoming request
- * 2. Process the request using our services
- * 3. Send back a response (success or error)
- * 4. Notify other players if needed (via WebSocket)
- * 5. Log what happened for debugging
- */

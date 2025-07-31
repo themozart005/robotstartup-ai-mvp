@@ -100,6 +100,7 @@ const aiService = new AIService();
 
 // FIXED: Connect GameManager to Socket.IO for broadcasting
 gameManager.setSocketIO(io);
+gameManager.setAIService(aiService); 
 
 // Make services available to all routes
 app.use((req, res, next) => {

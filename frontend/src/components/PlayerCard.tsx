@@ -1,297 +1,264 @@
 // frontend/src/components/PlayerCard.tsx
-// This shows information about each player in the game
-// Like player cards or scorecards that show everyone's status
+// UPDATED VERSION - Shows equity, valuation, and funding status
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
   Bot, 
-  Crown, 
   DollarSign, 
-  Factory, 
   Cog, 
+  Factory,
   TrendingUp,
-  AlertCircle,
-  CheckCircle
+  TrendingDown,
+  PieChart,
+  AlertTriangle,
+  Crown,
+  Building
 } from 'lucide-react';
 import { Player, gameHelpers } from '../store/GameStore';
 
 interface PlayerCardProps {
   player: Player;
-  isCurrentPlayer: boolean; // Is it this player's turn?
-  isMe: boolean; // Is this the current user?
-  showDetailedInfo?: boolean; // Show extra details for own card
+  isCurrentPlayer?: boolean;
+  isMe?: boolean;
+  showDetailed?: boolean;
 }
 
-const PlayerCard: React.FC<PlayerCardProps> = ({
-  player,
-  isCurrentPlayer,
-  isMe,
-  showDetailedInfo = false
+const PlayerCard: React.FC<PlayerCardProps> = ({ 
+  player, 
+  isCurrentPlayer = false, 
+  isMe = false,
+  showDetailed = false 
 }) => {
-  // Calculate player metrics
+  // Calculate financial metrics
   const netWorth = gameHelpers.calculatePlayerNetWorth(player);
-  const totalDebt = gameHelpers.calculatePlayerDebt(player);
+  const companyValuation = gameHelpers.calculateCompanyValuation(player);
+  const equity = player.equity || 100;
   const riskLevel = gameHelpers.getRiskLevel(player);
-  const unsoldRobots = player.robots.filter(r => !r.sold).length;
-
-  // Get risk level color
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'low': return 'text-green-400';
-      case 'medium': return 'text-yellow-400';
-      case 'high': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  // Get player type icon
-  const PlayerIcon = player.type === 'ai' ? Bot : User;
+  
+  // Determine if player has majority control
+  const hasMajorityControl = equity >= 51;
+  
+  // Get funding rounds info
+  const fundingRounds = player.fundingRounds || [];
+  const hasRaisedFunding = fundingRounds.length > 0;
+  const totalEquityRaised = fundingRounds
+    .filter(f => f.type === 'equity')
+    .reduce((sum, f) => sum + f.amount, 0);
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={`relative rounded-lg border transition-all duration-300 ${
-        isCurrentPlayer
-          ? 'bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20'
-          : isMe
-          ? 'bg-green-500/20 border-green-500/50'
-          : 'bg-white/10 border-white/20'
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-lg p-3 border transition-all ${
+        isMe 
+          ? 'bg-blue-500/20 border-blue-500/50 shadow-lg'
+          : isCurrentPlayer 
+          ? 'bg-green-500/20 border-green-500/50 shadow-md'
+          : 'bg-white/5 border-white/20 hover:bg-white/10'
       }`}
     >
-      {/* Turn Indicator */}
-      {isCurrentPlayer && (
+      {/* Player Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {player.type === 'ai' ? (
+            <Bot className={`${isCurrentPlayer ? 'text-green-400' : 'text-purple-400'}`} size={18} />
+          ) : (
+            <User className={`${isMe ? 'text-blue-400' : isCurrentPlayer ? 'text-green-400' : 'text-gray-400'}`} size={18} />
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`font-semibold ${
+                isMe ? 'text-blue-100' : isCurrentPlayer ? 'text-green-100' : 'text-white'
+              }`}>
+                {player.name}
+              </span>
+              {isMe && <span className="text-xs text-blue-400 font-medium">(You)</span>}
+              {hasMajorityControl && equity < 100 && (
+                <Crown className="text-yellow-400" size={14} title="Majority Control" />
+              )}
+            </div>
+            {player.type === 'ai' && player.aiPersonality && (
+              <div className="text-xs text-purple-300">
+                {player.aiPersonality.strategy.replace(/_/g, ' ')}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {isCurrentPlayer && (
+          <div className="flex items-center gap-1 px-2 py-1 bg-green-500/30 rounded text-xs">
+            <TrendingUp size={12} />
+            <span className="text-green-200">Turn</span>
+          </div>
+        )}
+      </div>
+
+      {/* Financial Overview */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {/* Cash */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <DollarSign className="text-green-400" size={14} />
+            <span className="text-xs text-gray-400">Cash</span>
+          </div>
+          <div className="text-sm font-semibold text-green-400">
+            {gameHelpers.formatCurrency(player.cash)}
+          </div>
+        </div>
+
+        {/* Net Worth */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Building className="text-blue-400" size={14} />
+            <span className="text-xs text-gray-400">Net Worth</span>
+          </div>
+          <div className="text-sm font-semibold text-blue-400">
+            {gameHelpers.formatCurrency(netWorth)}
+          </div>
+        </div>
+      </div>
+
+      {/* Equity & Valuation */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {/* Equity Ownership */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <PieChart className="text-purple-400" size={14} />
+            <span className="text-xs text-gray-400">Equity</span>
+          </div>
+          <div className={`text-sm font-semibold ${
+            equity >= 51 ? 'text-green-400' : equity >= 25 ? 'text-yellow-400' : 'text-red-400'
+          }`}>
+            {equity}%
+            {!hasMajorityControl && equity > 0 && (
+              <AlertTriangle className="inline ml-1" size={10} />
+            )}
+          </div>
+        </div>
+
+        {/* Company Valuation */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <TrendingUp className="text-orange-400" size={14} />
+            <span className="text-xs text-gray-400">Valuation</span>
+          </div>
+          <div className="text-sm font-semibold text-orange-400">
+            {gameHelpers.formatCurrency(companyValuation)}
+          </div>
+        </div>
+      </div>
+
+      {/* Assets Overview */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {/* Robots */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Factory className="text-orange-400" size={12} />
+            <span className="text-xs text-gray-400">Robots</span>
+          </div>
+          <div className="text-xs text-orange-300">
+            {player.robots.filter(r => !r.sold).length}
+          </div>
+        </div>
+
+        {/* Technologies */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Cog className="text-purple-400" size={12} />
+            <span className="text-xs text-gray-400">Tech</span>
+          </div>
+          <div className="text-xs text-purple-300">
+            {player.technologies.length}
+          </div>
+        </div>
+
+        {/* Reputation */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <User className="text-blue-400" size={12} />
+            <span className="text-xs text-gray-400">Rep</span>
+          </div>
+          <div className={`text-xs font-medium ${
+            player.reputation >= 70 ? 'text-green-400' : 
+            player.reputation >= 40 ? 'text-yellow-400' : 'text-red-400'
+          }`}>
+            {player.reputation}
+          </div>
+        </div>
+      </div>
+
+      {/* Funding Status */}
+      {hasRaisedFunding && (
+        <div className="border-t border-white/10 pt-2 mt-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-400">Funding:</span>
+            <span className="text-xs text-purple-300">
+              {fundingRounds.length} round{fundingRounds.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {totalEquityRaised > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-400">Raised:</span>
+              <span className="text-xs text-green-300">
+                {gameHelpers.formatCurrency(totalEquityRaised)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Risk Indicator */}
+      <div className="border-t border-white/10 pt-2 mt-2">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-400">Risk Level:</span>
+          <span className={`text-xs font-medium capitalize ${
+            riskLevel === 'low' ? 'text-green-400' : 
+            riskLevel === 'medium' ? 'text-yellow-400' : 'text-red-400'
+          }`}>
+            {riskLevel}
+          </span>
+        </div>
+      </div>
+
+      {/* Detailed Information (if enabled) */}
+      {showDetailed && (
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-lg"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="border-t border-white/10 pt-2 mt-2 space-y-1"
         >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-3 h-3 border-2 border-white border-t-transparent rounded-full"
-          />
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Total Revenue:</span>
+            <span className="text-green-300">{gameHelpers.formatCurrency(player.stats.totalRevenue)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Robots Built:</span>
+            <span className="text-orange-300">{player.stats.totalProduction}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Innovations:</span>
+            <span className="text-purple-300">{player.stats.successfulInnovations}</span>
+          </div>
+          {player.loans.length > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-400">Active Loans:</span>
+              <span className="text-red-300">{player.loans.length}</span>
+            </div>
+          )}
         </motion.div>
       )}
 
-      {/* Me Indicator */}
-      {isMe && !isCurrentPlayer && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-          <User size={12} className="text-white" />
+      {/* Control Warning */}
+      {!hasMajorityControl && equity > 0 && (
+        <div className="border-t border-red-500/30 pt-2 mt-2">
+          <div className="flex items-center gap-1">
+            <AlertTriangle className="text-red-400" size={12} />
+            <span className="text-xs text-red-300">Lost majority control</span>
+          </div>
         </div>
       )}
-
-      <div className="p-4">
-        {/* Player Header */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`p-2 rounded-lg ${
-            player.type === 'ai' 
-              ? 'bg-purple-500/20 text-purple-400' 
-              : 'bg-blue-500/20 text-blue-400'
-          }`}>
-            <PlayerIcon size={18} />
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className={`font-semibold truncate ${
-                isMe ? 'text-green-100' : 'text-white'
-              }`}>
-                {player.name}
-                {isMe && <span className="text-green-400 text-sm ml-1">(You)</span>}
-              </h3>
-              {player.type === 'ai' && (
-                <span className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">
-                  AI
-                </span>
-              )}
-            </div>
-            
-            {player.businessModel && (
-              <p className="text-xs text-gray-300 truncate">
-                {player.businessModel.name}
-              </p>
-            )}
-          </div>
-
-          {/* Reputation/Status */}
-          <div className="text-right">
-            <div className="flex items-center gap-1">
-              {player.reputation >= 80 ? (
-                <CheckCircle size={14} className="text-green-400" />
-              ) : player.reputation <= 40 ? (
-                <AlertCircle size={14} className="text-red-400" />
-              ) : (
-                <div className="w-3.5 h-3.5 rounded-full bg-yellow-400" />
-              )}
-              <span className="text-xs text-gray-300">{player.reputation}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Key Metrics */}
-        <div className="space-y-2">
-          {/* Cash */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DollarSign size={14} className="text-green-400" />
-              <span className="text-sm text-gray-300">Cash</span>
-            </div>
-            <span className="text-sm font-semibold text-green-400">
-              {gameHelpers.formatCurrency(player.cash)}
-            </span>
-          </div>
-
-          {/* Net Worth (for detailed view) */}
-          {showDetailedInfo && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={14} className="text-blue-400" />
-                <span className="text-sm text-gray-300">Net Worth</span>
-              </div>
-              <span className="text-sm font-semibold text-blue-400">
-                {gameHelpers.formatCurrency(netWorth)}
-              </span>
-            </div>
-          )}
-
-          {/* Robots */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Factory size={14} className="text-orange-400" />
-              <span className="text-sm text-gray-300">Robots</span>
-            </div>
-            <span className="text-sm text-orange-300">
-              {unsoldRobots} active
-            </span>
-          </div>
-
-          {/* Technologies */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Cog size={14} className="text-purple-400" />
-              <span className="text-sm text-gray-300">Tech</span>
-            </div>
-            <span className="text-sm text-purple-300">
-              {player.technologies.length}
-            </span>
-          </div>
-
-          {/* Risk Level (for detailed view) */}
-          {showDetailedInfo && totalDebt > 0 && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle size={14} className={getRiskColor(riskLevel)} />
-                <span className="text-sm text-gray-300">Risk</span>
-              </div>
-              <span className={`text-sm font-medium capitalize ${getRiskColor(riskLevel)}`}>
-                {riskLevel}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Detailed Information (expanded view) */}
-        {showDetailedInfo && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 pt-3 border-t border-white/20 space-y-2"
-          >
-            {/* Recent Performance */}
-            <div className="text-xs">
-              <div className="flex justify-between text-gray-400">
-                <span>Total Revenue:</span>
-                <span className="text-green-400">
-                  {gameHelpers.formatCurrency(player.stats.totalRevenue)}
-                </span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>Robots Produced:</span>
-                <span className="text-orange-400">{player.stats.totalProduction}</span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>Innovations:</span>
-                <span className="text-purple-400">{player.stats.successfulInnovations}</span>
-              </div>
-            </div>
-
-            {/* Active Loans */}
-            {player.loans.length > 0 && (
-              <div className="text-xs">
-                <div className="text-gray-400 mb-1">Active Loans:</div>
-                {player.loans.slice(0, 2).map((loan, index) => (
-                  <div key={index} className="flex justify-between text-gray-400">
-                    <span>Loan #{index + 1}:</span>
-                    <span className="text-red-400">
-                      {gameHelpers.formatCurrency(loan.amount)}
-                    </span>
-                  </div>
-                ))}
-                {player.loans.length > 2 && (
-                  <div className="text-gray-500 text-center">
-                    +{player.loans.length - 2} more...
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Active Technologies */}
-            {player.technologies.length > 0 && (
-              <div className="text-xs">
-                <div className="text-gray-400 mb-1">Technologies:</div>
-                <div className="flex flex-wrap gap-1">
-                  {player.technologies.slice(0, 3).map((tech, index) => (
-                    <span
-                      key={index}
-                      className="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs"
-                    >
-                      {tech.name.split(' ')[0]}
-                    </span>
-                  ))}
-                  {player.technologies.length > 3 && (
-                    <span className="text-gray-500">+{player.technologies.length - 3}</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* AI Personality (for AI players) */}
-        {player.type === 'ai' && player.aiPersonality && (
-          <div className="mt-3 pt-2 border-t border-white/20">
-            <div className="flex items-center gap-2">
-              <Bot size={12} className="text-purple-400" />
-              <span className="text-xs text-purple-300">
-                {player.aiPersonality.strategy.replace('-', ' ')} • {player.aiPersonality.riskTolerance} risk
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Current Action Status */}
-        {isCurrentPlayer && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-3 pt-2 border-t border-blue-500/30"
-          >
-            <div className="flex items-center gap-2">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="w-2 h-2 bg-blue-400 rounded-full"
-              />
-              <span className="text-xs text-blue-300 font-medium">
-                Making decision...
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </div>
     </motion.div>
   );
 };

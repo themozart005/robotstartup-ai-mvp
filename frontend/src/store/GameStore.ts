@@ -1,11 +1,11 @@
-// frontend/src/store/gameStore.ts
-// FIXED VERSION - Removed require() and fixed player ID handling
+// frontend/src/store/GameStore.ts
+// COMPLETE VERSION - With funding system support and updated phase info
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import toast from 'react-hot-toast';
 
-// Keep all your existing interfaces
+// UPDATED: Player interface with funding fields
 export interface Player {
   id: string;
   socketId?: string;
@@ -23,6 +23,41 @@ export interface Player {
   stats: PlayerStats;
   aiPersonality?: AIPersonality;
   isConnected?: boolean;
+  // NEW: Funding-related fields
+  equity?: number;
+  fundingRounds?: FundingRound[];
+  growthEffects?: GrowthEffect[];
+  marketingEffects?: MarketingEffect[];
+}
+
+// NEW: Funding round interface
+export interface FundingRound {
+  round: number;
+  type: 'equity' | 'debt' | 'pre-seed' | 'bootstrap';
+  amount: number;
+  equityGiven?: number;
+  postMoneyEquity?: number;
+  investor?: string;
+  interestRate?: number;
+  termRounds?: number;
+  takenInRound?: number;
+}
+
+// NEW: Growth effects tracking
+export interface GrowthEffect {
+  type: string;
+  value: number;
+  duration: number;
+  startedRound: number;
+}
+
+// NEW: Marketing effects tracking
+export interface MarketingEffect {
+  campaign: string;
+  amount: number;
+  roundStarted: number;
+  duration: number;
+  salesBoost: number;
 }
 
 export interface Robot {
@@ -65,6 +100,9 @@ export interface Loan {
   roundsRemaining: number;
   remainingRounds?: number;
   monthlyPayment: number;
+  amountDue?: number;
+  roundTaken?: number;
+  repaid?: boolean;
 }
 
 export interface PlayerStats {
@@ -87,7 +125,8 @@ export interface GameState {
   players: Player[];
   currentRound: number;
   maxRounds?: number;
-  currentPhase: 'startup' | 'r&d' | 'production' | 'sales' | 'investment';
+  // UPDATED: New phase types including finished
+  currentPhase: 'bootstrap' | 'funding' | 'r&d' | 'production' | 'sales' | 'growth' | 'finished';
   currentPlayerTurn: number;
   currentPlayerIndex?: number;
   gameSettings: GameSettings;
@@ -121,7 +160,7 @@ export interface MarketConditions {
 
 export interface GameEvent {
   id: string;
-  type: 'market' | 'technology' | 'competition' | 'tutorial';
+  type: 'market' | 'technology' | 'competition' | 'tutorial' | 'funding';
   title: string;
   description: string;
   impact?: any;
@@ -204,10 +243,10 @@ export const useGameStore = create<GameStore>()(
     isProcessingMove: false,
     socketEventHandlers: new Map(),
 
-    // FIXED: Socket event handler setup using dynamic import
+    // Socket event handler setup using dynamic import
     initializeSocketHandlers: async () => {
       try {
-        // FIXED: Use dynamic import instead of require()
+        // Use dynamic import instead of require()
         const { socketService } = await import('../services/SocketService');
         const handlers = new Map();
 
@@ -291,6 +330,58 @@ export const useGameStore = create<GameStore>()(
           console.log('🤖 GameStore: AI tutoring received:', response);
           set({ aiTutoring: response });
         };
+		
+		// Handler for market updates
+		const marketUpdateHandler = (updateData: any) => {
+	      console.log('📊 GameStore: Market update received:', updateData);
+  
+		  const currentGame = get().currentGame;
+		  if (currentGame && updateData.newConditions) {
+            // Update market conditions
+			const updatedGame = {
+			  ...currentGame,
+			  marketConditions: updateData.newConditions,
+			  eventHistory: updateData.event ? 
+				[...currentGame.eventHistory, updateData.event] : 
+				currentGame.eventHistory
+			};
+    
+			set({ currentGame: updatedGame });
+    
+			// Show toast notification for market events
+			if (updateData.event) {
+			  toast.success(`📊 Market Update: ${updateData.event.title}`);
+			}
+		  }
+		};
+
+        // Handler for game ending
+        const gameEndedHandler = (endData: any) => {
+          console.log('🏁 GameStore: Game ended:', endData);
+          
+          const currentGame = get().currentGame;
+          if (currentGame) {
+            const updatedGame = {
+              ...currentGame,
+              status: 'finished' as const,
+              winner: endData.winner,
+              finalScores: endData.finalScores,
+              currentPhase: 'finished' as any
+            };
+            
+            set({ currentGame: updatedGame });
+            
+            // Show winner announcement
+            const myPlayer = get().getMyPlayer();
+            if (endData.winner && myPlayer) {
+              if (endData.winner.id === myPlayer.id) {
+                toast.success('🎉 Congratulations! You WON the game!', { duration: 8000 });
+              } else {
+                toast.success(`🏁 Game finished! ${endData.winner.name} won!`, { duration: 6000 });
+              }
+            }
+          }
+        };
 
         // Store handlers
         handlers.set('game-updated', gameUpdatedHandler);
@@ -299,6 +390,8 @@ export const useGameStore = create<GameStore>()(
         handlers.set('move-success', moveSuccessHandler);
         handlers.set('move-error', moveErrorHandler);
         handlers.set('ai-tutoring', aiTutoringHandler);
+		handlers.set('market-update', marketUpdateHandler);
+        handlers.set('game-ended', gameEndedHandler);
 
         // Register with socket service
         handlers.forEach((handler, event) => {
@@ -400,7 +493,7 @@ export const useGameStore = create<GameStore>()(
     setLoading: (loading) => set({ isLoading: loading }),
     setProcessingMove: (processing) => set({ isProcessingMove: processing }),
 
-    // FIXED: Join game with proper event handling
+    // Join game with proper event handling
     joinGame: async (gameId, playerName) => {
       try {
         set({ isLoading: true });
@@ -493,40 +586,91 @@ export const useGameStore = create<GameStore>()(
       return isMyTurn && !isProcessingMove && currentGame?.status === 'playing';
     },
 
+    // UPDATED: getCurrentPhaseInfo with new phase structure and startup reality descriptions
     getCurrentPhaseInfo: () => {
       const { currentGame } = get();
       if (!currentGame) {
         return { phase: 'waiting', description: 'Waiting to start...', actions: [] };
       }
 
+      const round = currentGame.currentRound;
+      const phase = currentGame.currentPhase;
+
+      // UPDATED: New phase descriptions that match startup reality
       const phaseInfo = {
-        startup: {
-          description: 'Collect your round income and prepare for business decisions',
-          actions: ['Collect $50,000 income', 'Review market conditions', 'Plan your strategy']
+        bootstrap: {
+          description: 'Launch your startup with initial funding',
+          actions: [
+            'Collect $50,000 bootstrap funding', 
+            'Set business foundation', 
+            'Plan your MVP strategy'
+          ]
+        },
+        funding: {
+          description: 'Raise capital to scale your proven business model',
+          actions: [
+            'Choose funding type (equity vs debt)', 
+            'Negotiate investment terms', 
+            'Plan growth strategy with new capital'
+          ]
         },
         'r&d': {
-          description: 'Invest in new technologies to improve your robots',
-          actions: ['Choose technology to research', 'Decide investment amount', 'Roll for success']
+          description: round === 1 
+            ? 'Develop your MVP and core technology'
+            : 'Advance your technology for competitive advantage',
+          actions: round === 1
+            ? ['Choose core technologies', 'Build minimum viable product', 'Prove technical feasibility']
+            : ['Invest in advanced features', 'Next-generation improvements', 'Maintain competitive edge']
         },
         production: {
-          description: 'Build robots based on your market predictions',
-          actions: ['Select robot type', 'Choose components', 'Set production quantity']
+          description: round === 1
+            ? 'Build your first products to test the market'
+            : 'Scale manufacturing to meet growing demand',
+          actions: round === 1
+            ? ['Build initial units', 'Test production process', 'Validate manufacturing approach']
+            : ['Scale production capacity', 'Optimize manufacturing', 'Meet market demand']
         },
         sales: {
-          description: 'Sell your robots to customers based on market demand',
-          actions: ['Review market demand', 'Set pricing strategy', 'Complete sales']
+          description: round === 1
+            ? 'Prove market demand with early customers'
+            : 'Expand sales and capture market share',
+          actions: round === 1
+            ? ['Sell to early adopters', 'Prove product-market fit', 'Generate initial revenue']
+            : ['Expand customer base', 'Capture market share', 'Maximize revenue']
+        },
+        growth: {
+          description: round === 1
+            ? 'Build market presence and operational foundation'
+            : 'Scale operations and expand market reach',
+          actions: round === 1
+            ? ['Build brand awareness', 'Establish partnerships', 'Research market needs']
+            : ['Scale marketing efforts', 'Enter new markets', 'Strategic initiatives']
+        },
+        // Legacy phase support for backwards compatibility
+        startup: {
+          description: round === 1 
+            ? 'Collect your pre-seed funding and prepare for business'
+            : 'Choose how to fund your growing company',
+          actions: round === 1
+            ? ['Collect $50,000 pre-seed funding', 'Review market conditions', 'Plan your strategy']
+            : ['Select funding type', 'Review equity position', 'Consider market conditions']
         },
         investment: {
           description: 'Manage your financing through loans and investments',
           actions: ['Consider loan options', 'Pay existing debts', 'Plan next round']
+        },
+        finished: {
+          description: 'Game completed! Review final results and rankings.',
+          actions: ['View final scores', 'Compare company valuations', 'Review your journey']
         }
       };
 
-      const currentPhase = currentGame.currentPhase;
+      const currentPhaseInfo = phaseInfo[phase as keyof typeof phaseInfo];
+      
       return {
-        phase: currentPhase,
-        description: phaseInfo[currentPhase]?.description || 'Unknown phase',
-        actions: phaseInfo[currentPhase]?.actions || []
+        phase: phase,
+        description: currentPhaseInfo?.description || 'Unknown phase',
+        actions: currentPhaseInfo?.actions || []
       };
     }
   }))
@@ -561,7 +705,7 @@ useGameStore.subscribe(
   }
 );
 
-// Game helpers remain unchanged
+// UPDATED: Game helpers with valuation calculation and funding support
 export const gameHelpers = {
   calculatePlayerAssets: (player: Player): number => {
     const robotValue = player.robots.filter(r => !r.sold).length * 100000;
@@ -570,11 +714,56 @@ export const gameHelpers = {
   },
 
   calculatePlayerDebt: (player: Player): number => {
-    return player.loans.reduce((sum, loan) => sum + loan.amount, 0);
+    return player.loans.reduce((sum, loan) => sum + (loan.amountDue || loan.amount), 0);
   },
 
   calculatePlayerNetWorth: (player: Player): number => {
     return gameHelpers.calculatePlayerAssets(player) - gameHelpers.calculatePlayerDebt(player);
+  },
+
+  // NEW: Calculate company valuation
+  calculateCompanyValuation: (player: Player): number => {
+    const cash = player.cash || 0;
+    const robotInventoryValue = player.robots.filter(r => !r.sold).length * 100000;
+    const technologyValue = player.technologies.length * 50000;
+    const totalAssets = cash + robotInventoryValue + technologyValue;
+    const industryMultiple = 2.5; // Simplified for beginners
+    return totalAssets * industryMultiple;
+  },
+
+  // NEW: Calculate player ownership value
+  calculateOwnershipValue: (player: Player): number => {
+    const companyValuation = gameHelpers.calculateCompanyValuation(player);
+    const ownershipPercentage = (player.equity || 100) / 100;
+    return companyValuation * ownershipPercentage;
+  },
+
+  // NEW: Calculate total funding raised
+  calculateTotalFundingRaised: (player: Player): number => {
+    const fundingRounds = player.fundingRounds || [];
+    return fundingRounds.reduce((total, round) => total + round.amount, 0);
+  },
+
+  // NEW: Calculate active marketing effects
+  calculateActiveMarketingEffects: (player: Player, currentRound: number): MarketingEffect[] => {
+    const marketingEffects = player.marketingEffects || [];
+    return marketingEffects.filter(effect => 
+      currentRound <= effect.roundStarted + effect.duration
+    );
+  },
+
+  // NEW: Calculate current sales boost from marketing
+  calculateMarketingSalesBoost: (player: Player, currentRound: number): number => {
+    const activeEffects = gameHelpers.calculateActiveMarketingEffects(player, currentRound);
+    return activeEffects.reduce((total, effect) => total + effect.salesBoost, 0);
+  },
+
+  // NEW: Get equity status color
+  getEquityColor: (equity: number): string => {
+    if (equity >= 80) return 'text-green-600';
+    if (equity >= 60) return 'text-yellow-600';
+    if (equity >= 50) return 'text-orange-600';
+    return 'text-red-600';
   },
 
   getProductionCapacity: (player: Player, difficulty: string): number => {
@@ -637,6 +826,99 @@ export const gameHelpers = {
   calculateExpectedROI: (investment: number, benefit: number, duration: number): number => {
     const totalBenefit = benefit * duration;
     return ((totalBenefit - investment) / investment) * 100;
+  },
+
+  // NEW: Get phase-appropriate advice
+  getPhaseAdvice: (phase: string, round: number, player: Player): string => {
+    switch (phase) {
+      case 'bootstrap':
+        return 'Focus on proving your concept with minimal resources. Every dollar counts!';
+      case 'funding':
+        return `Consider your funding options carefully. Equity dilutes ownership but provides capital without debt.`;
+      case 'r&d':
+        return round === 1 
+          ? 'Invest in core technologies that prove your concept works.'
+          : 'Advanced technologies give you competitive advantages in the market.';
+      case 'production':
+        const capacity = gameHelpers.calculateProductionCapacity(player, round);
+        return round === 1
+          ? `Build enough units to test market demand. You can produce up to ${capacity} robots.`
+          : `Scale production to meet demand. Your funding allows up to ${capacity} robots this round!`;
+      case 'sales':
+        return round === 1
+          ? 'Focus on early adopters who will validate your product-market fit.'
+          : 'Expand your customer base and maximize revenue from proven demand.';
+      case 'growth':
+        return round === 1
+          ? 'Build foundation for future growth: brand awareness and partnerships.'
+          : 'Scale your marketing and operations to capture maximum market share.';
+      case 'finished':
+        return 'Game complete! Review your entrepreneurial journey and final results.';
+      default:
+        return 'Make strategic decisions based on your current business stage.';
+    }
+  },
+
+  // NEW: Calculate production capacity (mirrors backend logic)
+  calculateProductionCapacity: (player: Player, currentRound: number = 1): number => {
+    console.log(`🏭 Calculating production capacity for Round ${currentRound}:`, {
+      cash: player.cash,
+      fundingRounds: player.fundingRounds?.length || 0,
+      totalRevenue: player.stats?.totalRevenue || 0
+    });
+    
+    // Round 1: Limited capacity to prove concept
+    if (currentRound === 1) {
+      let baseCapacity = 3;
+      const productionTechs = player.technologies.filter(t => 
+        t.name && (t.name.includes('Factory') || t.name.includes('Production'))
+      );
+      const techBonus = productionTechs.reduce((sum, tech) => sum + (tech.benefit || 0), 0);
+      const finalCapacity = Math.floor(baseCapacity * (1 + techBonus * 0.1));
+      
+      console.log(`🏭 Round 1 capacity: ${finalCapacity} (base: ${baseCapacity}, tech bonus: ${techBonus})`);
+      return finalCapacity;
+    }
+    
+    // Round 2+: Scale based on funding and cash flow
+    const playerCash = player.cash || 0;
+    const totalFundingRaised = (player.fundingRounds || []).reduce((sum, round) => sum + round.amount, 0);
+    const totalRevenue = player.stats?.totalRevenue || 0;
+    
+    let scaledCapacity = 5; // Base for Round 2+
+    
+    // Cash flow scaling (every $100k = +1 capacity)
+    const cashBonus = Math.floor(playerCash / 100000);
+    
+    // Funding scaling (every $250k raised = +2 capacity)  
+    const fundingBonus = Math.floor(totalFundingRaised / 250000) * 2;
+    
+    // Revenue scaling (every $500k revenue = +1 capacity)
+    const revenueBonus = Math.floor(totalRevenue / 500000);
+    
+    // Technology scaling
+    const productionTechs = player.technologies.filter(t => 
+      t.name && (t.name.includes('Factory') || t.name.includes('Production') || t.name.includes('Motors') || t.name.includes('Automation'))
+    );
+    const techBonus = productionTechs.length * 2; // Each production tech adds 2 capacity
+    
+    scaledCapacity += cashBonus + fundingBonus + revenueBonus + techBonus;
+    
+    // Reasonable maximum to prevent game breaking
+    const maxCapacity = 25;
+    const finalCapacity = Math.min(Math.max(1, scaledCapacity), maxCapacity);
+    
+    console.log(`🏭 Round ${currentRound} capacity calculation:`, {
+      baseCapacity: 5,
+      cashBonus,
+      fundingBonus,
+      revenueBonus,
+      techBonus,
+      scaledCapacity,
+      finalCapacity
+    });
+    
+    return finalCapacity;
   }
 };
 

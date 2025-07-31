@@ -1,5 +1,5 @@
 // frontend/src/components/GamePhasePanel.tsx
-// COMPLETE FIXED VERSION - All phases with proper event handling
+// COMPLETE VERSION - With bootstrap/funding/growth phase structure
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,13 +14,21 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  Users,
+  PieChart,
+  Building,
+  BarChart3,
+  Target,
+  Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Player, GameSettings } from '../store/GameStore';
+import FundingModal from './FundingModal';
+import GrowthPhaseModal from './GrowthPhaseModal';
 
 interface GamePhasePanelProps {
-  phase: 'startup' | 'r&d' | 'production' | 'sales' | 'investment';
+  phase: 'bootstrap' | 'funding' | 'r&d' | 'production' | 'sales' | 'growth';
   phaseInfo: {
     phase: string;
     description: string;
@@ -31,6 +39,7 @@ interface GamePhasePanelProps {
   marketConditions: any;
   isMyTurn: boolean;
   canMakeMove: boolean;
+  currentRound: number;
   onMakeMove: (moveData: any) => void;
   onRequestHelp: (concept: string) => void;
   selectedAction: string | null;
@@ -45,12 +54,15 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
   marketConditions,
   isMyTurn,
   canMakeMove,
+  currentRound,
   onMakeMove,
   onRequestHelp,
   selectedAction,
   onSelectAction
 }) => {
   const [actionData, setActionData] = useState<any>({});
+  const [showFundingModal, setShowFundingModal] = useState(false);
+  const [showGrowthModal, setShowGrowthModal] = useState(false);
 
   // Handle action selection
   const handleSelectAction = (action: string) => {
@@ -65,78 +77,161 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
     }
   };
 
-  // Startup Phase: Collect income and plan
-  const renderStartupPhase = () => (
-    <div className="space-y-4">
-      <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <DollarSign className="text-green-400" size={24} />
-          <div>
-            <h3 className="text-white font-semibold">Round Income</h3>
-            <p className="text-green-200 text-sm">Collect your $50,000 round income</p>
+  // Handle funding selection from modal
+  const handleFundingSelection = (option: any) => {
+    onMakeMove({
+      action: 'select_funding',
+      data: {
+        fundingType: option.type,
+        amount: option.amount,
+        equityGiven: option.equityGiven,
+        interestRate: option.interestRate,
+        termRounds: option.termRounds,
+        investorName: option.name
+      }
+    });
+    setShowFundingModal(false);
+  };
+
+  // Handle growth selection from modal
+  const handleGrowthSelection = (option: any) => {
+    onMakeMove({
+      action: 'invest_marketing',
+      data: {
+        investmentType: option.investmentType,
+        amount: option.amount
+      }
+    });
+    setShowGrowthModal(false);
+  };
+
+  // UPDATED: Bootstrap Phase (Round 1 only)
+  const renderBootstrapPhase = () => {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 p-4 rounded-lg">
+          <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+            <DollarSign size={20} />
+            Bootstrap Phase - Launch Your Startup
+          </h3>
+          <p className="text-green-100 mb-4">
+            Secure your initial funding from friends & family to launch your robotics startup.
+          </p>
+          
+          <div className="bg-green-600/30 rounded-lg p-3 mb-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-green-200">Bootstrap Funding:</span>
+                <div className="text-green-100 font-semibold">$50,000</div>
+              </div>
+              <div>
+                <span className="text-green-200">Your Equity:</span>
+                <div className="text-green-100 font-semibold">100%</div>
+              </div>
+              <div>
+                <span className="text-green-200">Funding Source:</span>
+                <div className="text-green-100 font-semibold">Friends & Family</div>
+              </div>
+              <div>
+                <span className="text-green-200">Valuation:</span>
+                <div className="text-green-100 font-semibold">Pre-revenue</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => onMakeMove({ action: 'collect_income', data: {} })}
+              disabled={!canMakeMove}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                canMakeMove
+                  ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
+                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+              }`}
+            >
+              Accept Bootstrap Funding
+            </button>
           </div>
         </div>
-        
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onMakeMove({
-              action: 'collect_income',
-              data: {}
-            });
-          }}
-          disabled={!canMakeMove}
-          className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-            canMakeMove
-              ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
-              : 'bg-gray-500 text-gray-300 cursor-not-allowed'
-          }`}
-        >
-          {selectedAction === 'collect_income' ? 'Confirm Collection' : 'Collect Income'}
-        </button>
-        
-        {selectedAction === 'collect_income' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-3 p-3 bg-green-600/20 rounded border border-green-500/30"
-          >
-            <div className="flex justify-between items-center">
-              <span className="text-green-100">Income to collect:</span>
-              <span className="text-green-100 font-bold">$50,000</span>
-            </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                onMakeMove({
-                  action: 'collect_income',
-                  data: {}
-                });
-              }}
-              className="w-full mt-2 bg-green-700 hover:bg-green-800 text-white py-2 rounded transition-colors"
-            >
-              Confirm & Continue
-            </button>
-          </motion.div>
-        )}
-      </div>
 
-      {/* Strategy Planning */}
-      <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4">
-        <h3 className="text-white font-semibold mb-2">Strategy Planning</h3>
-        <p className="text-blue-200 text-sm mb-3">
-          Use this time to plan your moves for this round
-        </p>
-        <button
-          onClick={() => onRequestHelp('strategic-planning')}
-          className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-        >
-          <HelpCircle size={16} />
-          Get Strategy Tips
-        </button>
+        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+          <h4 className="text-white font-medium mb-2">💡 Bootstrap Strategy</h4>
+          <ul className="text-blue-200 text-sm space-y-1">
+            <li>• This is your initial capital to prove your concept</li>
+            <li>• Focus on building an MVP and finding early customers</li>
+            <li>• Manage cash carefully - you won't get more funding until Round 2</li>
+          </ul>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  // UPDATED: Funding Phase (Round 2+ only)
+  const renderFundingPhase = () => {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-lg">
+          <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+            <TrendingUp size={20} />
+            Funding Phase - Scale Your Proven Business
+          </h3>
+          <p className="text-purple-100 mb-4">
+            You've proven your concept works. Now raise capital to scale your operations.
+          </p>
+          
+          <div className="bg-purple-600/30 rounded-lg p-3 mb-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-purple-200">Current Cash:</span>
+                <div className="text-purple-100 font-semibold">${player.cash.toLocaleString()}</div>
+              </div>
+              <div>
+                <span className="text-purple-200">Your Equity:</span>
+                <div className={`font-semibold ${
+                  (player.equity || 100) >= 51 ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {player.equity || 100}%
+                </div>
+              </div>
+              <div>
+                <span className="text-purple-200">Round:</span>
+                <div className="text-purple-100 font-semibold">{currentRound}</div>
+              </div>
+              <div>
+                <span className="text-purple-200">Funding History:</span>
+                <div className="text-purple-100 font-semibold">
+                  {(player.fundingRounds || []).length} rounds
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowFundingModal(true)}
+              disabled={!canMakeMove}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                canMakeMove
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl'
+                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+              }`}
+            >
+              Choose Funding Strategy
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-3">
+          <h4 className="text-white font-medium mb-2">💰 Funding Strategy</h4>
+          <ul className="text-purple-200 text-sm space-y-1">
+            <li>• Venture capital provides money + expertise but dilutes ownership</li>
+            <li>• Business loans keep you in control but require regular payments</li>
+            <li>• Consider your growth plans and risk tolerance</li>
+          </ul>
+        </div>
+      </div>
+    );
+  };
 
   // R&D Phase: Invest in technology
   const renderRnDPhase = () => {
@@ -158,7 +253,9 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             <Cog className="text-purple-400" size={24} />
             <div>
               <h3 className="text-white font-semibold">Research & Development</h3>
-              <p className="text-purple-200 text-sm">Invest in new technologies</p>
+              <p className="text-purple-200 text-sm">
+                {currentRound === 1 ? 'Develop your MVP and core technology' : 'Advance technology for competitive advantage'}
+              </p>
             </div>
           </div>
 
@@ -210,14 +307,11 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
 
           <div className="flex gap-2">
             <button
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 if (selectedTech) {
                   onMakeMove({
                     action: 'invest_r&d',
-                    data: {
-                      technology: selectedTech
-                    }
+                    data: { technology: selectedTech }
                   });
                 }
               }}
@@ -232,15 +326,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             </button>
             
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                onMakeMove({
-                  action: 'skip_r&d',
-                  data: {
-                    reason: 'player_choice'
-                  }
-                });
-              }}
+              onClick={() => onMakeMove({ action: 'skip_r&d', data: { reason: 'player_choice' } })}
               disabled={!canMakeMove}
               className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
             >
@@ -304,7 +390,10 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             <div>
               <h3 className="text-white font-semibold">Robot Production</h3>
               <p className="text-orange-200 text-sm">
-                Build robots for market demand ({player.robotsBuiltThisRound}/{maxProduction} used)
+                {currentRound === 1 
+                  ? 'Build your first products to test the market'
+                  : 'Scale manufacturing to meet growing demand'
+                } ({player.robotsBuiltThisRound}/{maxProduction} used)
               </p>
             </div>
           </div>
@@ -427,8 +516,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
 
           <div className="flex gap-2 mt-4">
             <button
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 if (robotType) {
                   onMakeMove({
                     action: 'build_robots',
@@ -451,15 +539,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             </button>
             
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                onMakeMove({
-                  action: 'skip_production',
-                  data: {
-                    reason: 'player_choice'
-                  }
-                });
-              }}
+              onClick={() => onMakeMove({ action: 'skip_production', data: { reason: 'player_choice' } })}
               disabled={!canMakeMove}
               className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
             >
@@ -484,9 +564,10 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
     );
   };
 
-  // Sales Phase: Sell robots - FIXED VERSION
+  // Sales Phase: Sell robots with quantity selection
   const renderSalesPhase = () => {
     const unsoldRobots = player.robots.filter(r => !r.sold);
+    const [sellQuantity, setSellQuantity] = useState<number | 'all'>(unsoldRobots.length > 0 ? unsoldRobots.length : 'all');
     
     return (
       <div className="space-y-4">
@@ -495,14 +576,19 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             <ShoppingCart className="text-green-400" size={24} />
             <div>
               <h3 className="text-white font-semibold">Sales Phase</h3>
-              <p className="text-green-200 text-sm">Sell your robots to customers</p>
+              <p className="text-green-200 text-sm">
+                {currentRound === 1 
+                  ? 'Prove market demand with early customers'
+                  : 'Expand sales and capture market share'
+                }
+              </p>
             </div>
           </div>
 
           {unsoldRobots.length > 0 ? (
             <>
               <div className="bg-green-600/20 rounded p-3 mb-4">
-                <h4 className="text-white font-medium mb-2">Available Robots ({unsoldRobots.length}):</h4>
+                <h4 className="text-white font-medium mb-2">Robot Inventory ({unsoldRobots.length} available):</h4>
                 <div className="space-y-2">
                   {unsoldRobots.slice(0, 5).map((robot, index) => (
                     <div key={index} className="flex justify-between text-sm">
@@ -520,13 +606,52 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
                 </div>
               </div>
 
+              {/* Quantity Selection */}
+              <div className="bg-green-700/20 rounded p-3 mb-4">
+                <label className="text-white text-sm font-medium mb-2 block">
+                  How many robots to sell?
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSellQuantity('all')}
+                    className={`px-3 py-2 rounded transition-all ${
+                      sellQuantity === 'all'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                    }`}
+                  >
+                    Sell All ({unsoldRobots.length})
+                  </button>
+                  {unsoldRobots.length > 1 && (
+                    <input
+                      type="number"
+                      min="1"
+                      max={unsoldRobots.length}
+                      value={sellQuantity === 'all' ? unsoldRobots.length : sellQuantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (val > 0 && val <= unsoldRobots.length) {
+                          setSellQuantity(val);
+                        }
+                      }}
+                      className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white w-24"
+                    />
+                  )}
+                </div>
+                <p className="text-green-200 text-xs mt-2">
+                  Tip: You can keep robots in inventory for future rounds if market conditions improve
+                </p>
+              </div>
+
               <button
-                onClick={(e) => {
-                  e.preventDefault();
+                onClick={() => {
                   onMakeMove({
                     action: 'sell_robots',
                     data: {
-                      robotIds: unsoldRobots.map(r => r.id)
+                      quantity: sellQuantity,
+                      robotIds: sellQuantity === 'all' 
+                        ? unsoldRobots.map(r => r.id)
+                        : unsoldRobots.slice(0, sellQuantity as number).map(r => r.id)
                     }
                   });
                 }}
@@ -537,38 +662,16 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
                     : 'bg-gray-500 text-gray-300 cursor-not-allowed'
                 }`}
               >
-                Sell All Robots
+                Sell {sellQuantity === 'all' ? 'All' : sellQuantity} Robot{sellQuantity !== 1 ? 's' : ''}
               </button>
 
-              {selectedAction === 'sell_robots' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-4 p-3 bg-green-700/30 rounded border border-green-500/30"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="text-green-400" size={16} />
-                    <span className="text-white font-semibold">Market Sales</span>
-                  </div>
-                  <p className="text-green-100 text-sm mb-3">
-                    Sales prices depend on current market demand and your robot quality.
-                  </p>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onMakeMove({
-                        action: 'sell_robots',
-                        data: {
-                          robotIds: unsoldRobots.map(r => r.id)
-                        }
-                      });
-                    }}
-                    className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded transition-colors"
-                  >
-                    Complete Sales
-                  </button>
-                </motion.div>
-              )}
+              <button
+                onClick={() => onMakeMove({ action: 'skip_sales', data: { reason: 'keep_inventory' } })}
+                disabled={!canMakeMove}
+                className="w-full mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+              >
+                Skip Sales (Keep Inventory)
+              </button>
             </>
           ) : (
             <div className="text-center py-8">
@@ -578,15 +681,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
                 Build robots in the production phase to have inventory for sales
               </p>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  onMakeMove({
-                    action: 'skip_sales',
-                    data: {
-                      reason: 'no_robots_to_sell'
-                    }
-                  });
-                }}
+                onClick={() => onMakeMove({ action: 'skip_sales', data: { reason: 'no_robots_to_sell' } })}
                 disabled={!canMakeMove}
                 className="mt-4 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
               >
@@ -612,174 +707,148 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
     );
   };
 
-  // Investment Phase: Manage finances
-  const renderInvestmentPhase = () => (
-    <div className="space-y-4">
-      <div className="bg-indigo-500/20 border border-indigo-500/30 rounded-lg p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <CreditCard className="text-indigo-400" size={24} />
-          <div>
-            <h3 className="text-white font-semibold">Investment Phase</h3>
-            <p className="text-indigo-200 text-sm">Manage your finances and seek funding</p>
+  // NEW: Growth Phase - replaces investment phase
+  const renderGrowthPhase = () => {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gradient-to-r from-pink-600 to-orange-600 p-4 rounded-lg">
+          <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+            <BarChart3 size={20} />
+            Growth Phase - {currentRound === 1 ? 'Build Foundation' : 'Scale Operations'}
+          </h3>
+          <p className="text-pink-100 mb-4">
+            {currentRound === 1
+              ? 'Invest in building your market presence and operational foundation.'
+              : 'Scale your marketing efforts and expand your market reach.'
+            }
+          </p>
+          
+          <div className="bg-pink-600/30 rounded-lg p-3 mb-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-pink-200">Available Cash:</span>
+                <div className="text-pink-100 font-semibold">${player.cash.toLocaleString()}</div>
+              </div>
+              <div>
+                <span className="text-pink-200">Current Reputation:</span>
+                <div className="text-pink-100 font-semibold">{player.reputation}/100</div>
+              </div>
+              <div>
+                <span className="text-pink-200">Growth Focus:</span>
+                <div className="text-pink-100 font-semibold">
+                  {currentRound === 1 ? 'Foundation Building' : 'Market Expansion'}
+                </div>
+              </div>
+              <div>
+                <span className="text-pink-200">Market Position:</span>
+                <div className="text-pink-100 font-semibold">
+                  {player.reputation >= 70 ? 'Strong' : player.reputation >= 40 ? 'Moderate' : 'Developing'}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowGrowthModal(true)}
+              disabled={!canMakeMove}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                canMakeMove
+                  ? 'bg-pink-600 hover:bg-pink-700 text-white shadow-lg hover:shadow-xl'
+                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+              }`}
+            >
+              Choose Growth Strategy
+            </button>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              onMakeMove({
-                action: 'take_loan',
-                data: {
-                  amount: 100000
-                }
-              });
-            }}
-            disabled={!canMakeMove}
-            className={`w-full p-3 rounded border text-left transition-all ${
-              selectedAction === 'take_loan'
-                ? 'bg-indigo-600/30 border-indigo-500/50 text-white'
-                : 'bg-white/5 border-white/20 text-gray-300 hover:bg-white/10'
-            }`}
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="font-medium">Take Business Loan</div>
-                <div className="text-sm opacity-75">Get $100,000 with 10% interest</div>
-              </div>
-              <CreditCard size={20} />
-            </div>
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              onMakeMove({
-                action: 'skip_investment',
-                data: {
-                  reason: 'player_choice'
-                }
-              });
-            }}
-            disabled={!canMakeMove}
-            className="w-full p-3 rounded border text-left bg-white/5 border-white/20 text-gray-300 hover:bg-white/10 transition-all"
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="font-medium">Skip Investment</div>
-                <div className="text-sm opacity-75">Continue with current funds</div>
-              </div>
-              <CheckCircle size={20} />
-            </div>
-          </button>
-        </div>
-
-        {selectedAction === 'take_loan' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 p-3 bg-indigo-700/30 rounded border border-indigo-500/30"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="text-yellow-400" size={16} />
-              <span className="text-white font-semibold">Loan Terms</span>
-            </div>
-            <div className="text-indigo-100 text-sm space-y-1 mb-3">
-              <div>Amount: $100,000</div>
-              <div>Interest Rate: 10% per round</div>
-              <div>Must be repaid within 5 rounds</div>
-            </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                onMakeMove({
-                  action: 'take_loan',
-                  data: {
-                    amount: 100000
-                  }
-                });
-              }}
-              className="w-full bg-indigo-700 hover:bg-indigo-800 text-white py-2 rounded transition-colors"
-            >
-              Accept Loan Terms
-            </button>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Help Section */}
-      <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
-        <div className="flex justify-between items-center">
-          <span className="text-blue-100 text-sm">Need financial planning help?</span>
-          <button
-            onClick={() => onRequestHelp('financial-planning')}
-            className="text-blue-400 hover:text-blue-300 text-sm underline"
-          >
-            Ask AI Tutor
-          </button>
+        <div className="bg-pink-500/20 border border-pink-500/30 rounded-lg p-3">
+          <h4 className="text-white font-medium mb-2">📈 Growth Strategy</h4>
+          <ul className="text-pink-200 text-sm space-y-1">
+            {currentRound === 1 ? (
+              <>
+                <li>• Build brand awareness and market recognition</li>
+                <li>• Research customer needs to guide product development</li>
+                <li>• Establish partnerships for future growth</li>
+              </>
+            ) : (
+              <>
+                <li>• Scale marketing efforts for broader reach</li>
+                <li>• Enter new markets and customer segments</li>
+                <li>• Form strategic partnerships for expansion</li>
+              </>
+            )}
+          </ul>
         </div>
       </div>
-    </div>
-  );
-
-  // Render different content based on current phase
-  const renderPhaseContent = () => {
-    switch (phase) {
-      case 'startup':
-        return renderStartupPhase();
-      case 'r&d':
-        return renderRnDPhase();
-      case 'production':
-        return renderProductionPhase();
-      case 'sales':
-        return renderSalesPhase();
-      case 'investment':
-        return renderInvestmentPhase();
-      default:
-        return <div>Unknown phase</div>;
-    }
+    );
   };
 
+  // Main component return
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-6">
-      {/* Phase Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-white capitalize">{phase} Phase</h2>
-          <p className="text-gray-300 text-sm mt-1">{phaseInfo.description}</p>
+    <>
+      <div className="bg-gray-800 rounded-lg shadow-xl p-6">
+        {/* Phase Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white capitalize">{phase} Phase</h2>
+            <p className="text-gray-400 mt-1">{phaseInfo.description}</p>
+          </div>
+          {isMyTurn && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-500/20 border border-green-500/30 rounded">
+              <Zap className="text-green-400" size={16} />
+              <span className="text-green-300 text-sm font-medium">Your Turn</span>
+            </div>
+          )}
         </div>
-        
-        {isMyTurn && (
-          <div className="flex items-center gap-2 text-green-400">
-            <Clock size={16} />
-            <span className="text-sm font-medium">Your Turn</span>
+
+        {/* Phase Content */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={phase}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {phase === 'bootstrap' && renderBootstrapPhase()}
+            {phase === 'funding' && renderFundingPhase()}
+            {phase === 'r&d' && renderRnDPhase()}
+            {phase === 'production' && renderProductionPhase()}
+            {phase === 'sales' && renderSalesPhase()}
+            {phase === 'growth' && renderGrowthPhase()}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Turn Indicator */}
+        {!isMyTurn && (
+          <div className="mt-6 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+            <div className="flex items-center gap-2">
+              <Clock className="text-gray-400" size={16} />
+              <span className="text-gray-300 text-sm">Waiting for other players...</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Phase Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={phase}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          {renderPhaseContent()}
-        </motion.div>
-      </AnimatePresence>
+      {/* Modals */}
+      <FundingModal
+        isOpen={showFundingModal}
+        currentRound={currentRound}
+        player={player}
+        onSelectFunding={handleFundingSelection}
+        onRequestHelp={onRequestHelp}
+      />
 
-      {/* Turn Status */}
-      {!isMyTurn && (
-        <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-          <div className="flex items-center gap-2 text-yellow-200">
-            <Clock size={16} />
-            <span className="text-sm">Waiting for other players to complete their moves...</span>
-          </div>
-        </div>
-      )}
-    </div>
+      <GrowthPhaseModal
+        isOpen={showGrowthModal}
+        currentRound={currentRound}
+        player={player}
+        onSelectGrowth={handleGrowthSelection}
+        onRequestHelp={onRequestHelp}
+      />
+    </>
   );
 };
 

@@ -1,5 +1,5 @@
 // backend/src/services/AIService.js
-// ENHANCED VERSION - Uses GPT-4 with fallback to GPT-3.5-turbo and safety checks
+// ENHANCED VERSION - With venture capital and debt funding tutoring
 
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
@@ -87,68 +87,76 @@ class AIService {
   }
 
   /**
-   * Generate a market event based on game state
+   * FIXED: Generate dynamic market events using AI - Updated to work with GameManager context
    */
-  async generateMarketEvent(gameState) {
+  async generateMarketEvent(context) {
     if (!this.isEnabled || !this.openai) {
       return this.getFallbackMarketEvent();
     }
 
     try {
-      const prompt = `You are an AI tutor for a business education game about robotics companies. 
+      const prompt = `Generate a realistic market event for a robotics startup simulation game.
 
-Current game situation:
-- Round: ${gameState.currentRound} of ${gameState.gameSettings.maxRounds}
-- Phase: ${gameState.currentPhase}
-- Market demand: ${gameState.marketConditions.demand}
-- Active players: ${gameState.players.length}
-- Industry focus: ${gameState.gameSettings.industry}
-- Difficulty: ${gameState.gameSettings.difficulty}
+Context:
+- Current Round: ${context.currentRound}
+- Industry: ${context.industry}
+- Current Market Demand: ${context.currentConditions.demand}
+- Current Volatility: ${context.currentConditions.volatility}
+- Active Trends: ${context.currentConditions.trends.join(', ')}
+- Recent Player Activity: ${JSON.stringify(context.playerActions)}
 
-Generate a realistic business market event that would affect robotics companies. Keep it educational and age-appropriate for students aged 12-18. The event should be relevant to the current game phase and round.
+Generate a market event that could realistically affect robot demand, pricing, or business conditions. 
 
 Respond with a JSON object containing:
-- title: Brief event title (max 50 characters)
-- description: Educational explanation (max 150 characters)  
-- impact: How this affects the game ("positive", "negative", or "neutral")
-- significance: How important this is ("low", "medium", or "high")
-- educationalTip: Brief learning point for students (max 100 characters)
+- title: Short event headline (max 50 characters)
+- description: Educational explanation (max 150 characters)
+- demandChange: true/false if demand should change
+- newDemand: "low"/"medium"/"high" (only if demandChange is true)
+- volatilityChange: number between -0.3 and +0.3
+- newTrends: array of trend strings (optional)
+- impact: object describing effects on different robot types
+- eventModifiers: array of temporary effects
 
-Example format:
-{"title": "Tech Breakthrough in AI", "description": "New AI chip technology reduces robot manufacturing costs by 15%", "impact": "positive", "significance": "medium", "educationalTip": "Innovation can create competitive advantages"}`;
+Example events: supply chain disruptions, new tech breakthroughs, economic changes, regulatory updates, competitor actions, customer behavior shifts.
+
+Keep it realistic and educational for business students.`;
 
       const messages = [
         {
-          role: "system",
-          content: "You are an educational AI assistant that creates realistic business scenarios for a robotics company simulation game. Always respond with valid JSON only, no additional text."
+          role: 'system',
+          content: 'You are a business simulation AI that generates realistic market events for educational games. Always respond with valid JSON.'
         },
         {
-          role: "user",
+          role: 'user',
           content: prompt
         }
       ];
 
-      const response = await this.makeAIRequest(messages, { max_tokens: 250, temperature: 0.8 });
-      
+      const response = await this.makeAIRequest(messages, { 
+        max_tokens: 800, 
+        temperature: 0.7 
+      });
+
       try {
-        const eventData = JSON.parse(response);
+        // Parse AI response
+        const marketEvent = JSON.parse(response);
         
         // Validate required fields
-        if (!eventData.title || !eventData.description || !eventData.impact) {
+        if (!marketEvent.title || !marketEvent.description) {
           throw new Error('Invalid AI response format');
         }
         
-        logger.info(`✅ AI market event generated with ${this.currentModel}:`, eventData.title);
-        return eventData;
-        
+        logger.info(`🤖 AI generated market event: ${marketEvent.title}`);
+        return marketEvent;
+
       } catch (parseError) {
-        logger.error('Failed to parse AI response:', parseError.message);
+        logger.error('Failed to parse AI market event response:', parseError.message);
         logger.debug('Raw AI response:', response);
         return this.getFallbackMarketEvent();
       }
 
     } catch (error) {
-      logger.error('Error generating market event:', error.message);
+      logger.error('Error generating AI market event:', error.message);
       return this.getFallbackMarketEvent();
     }
   }
@@ -172,6 +180,7 @@ Current game context:
 - Current round: ${context.round || 1}
 - Robot count: ${context.robotCount || 0}
 - Technologies owned: ${context.techCount || 0}
+- Current equity: ${context.equity || 100}%
 
 Provide a helpful, encouraging explanation that:
 1. Explains the concept in simple, clear terms
@@ -211,7 +220,9 @@ Use encouraging, positive language. Be specific about their current situation. K
       return this.getFallbackTutoringResponse(concept);
     }
   }
-
+  
+  
+  
   /**
    * Get relevant real-world examples for concepts
    */
@@ -223,6 +234,13 @@ Use encouraging, positive language. Be specific about their current situation. K
       'pricing-strategy': "Apple prices products at premium levels because of their brand value and innovation",
       'market-analysis': "Amazon studies customer data to predict which products will be popular",
       'risk-management': "Diversified companies like General Electric spread risk across multiple business areas",
+      'venture-capital-vs-debt': "Uber raised venture capital to grow rapidly without debt, while FedEx used loans to buy delivery trucks",
+      'equity-dilution': "Mark Zuckerberg gave up equity in Facebook to investors but kept control through special voting shares",
+      'debt-financing': "Airlines often use loans to buy expensive planes, paying them off with passenger revenue",
+      'funding-strategy': "SpaceX mixed venture capital with government contracts to fund rocket development",
+      'financial-planning': "Microsoft keeps large cash reserves to weather economic downturns and fund acquisitions",
+      'strategic-planning': "Netflix pivoted from DVDs to streaming when they saw where technology was heading",
+      'sales-strategy': "Amazon started with books but planned to expand into 'everything store' from the beginning",
       'general-strategy': "Netflix pivoted from DVDs to streaming when they saw technology trends changing"
     };
     
@@ -257,6 +275,13 @@ Use encouraging, positive language. Be specific about their current situation. K
       'pricing-strategy': "Price 10-20% above costs initially, then adjust based on sales results",
       'market-analysis': "Watch the market demand indicator to time your production",
       'risk-management': "Diversify your robot types to reduce dependence on one market",
+      'venture-capital-vs-debt': "Choose equity if you need guidance and connections, debt if you want to keep control",
+      'equity-dilution': "Never give up more than 49% total equity to maintain control of your company",
+      'debt-financing': "Only take loans if you can afford monthly payments from your regular income",
+      'funding-strategy': "Mix funding sources - some equity for growth, some debt for assets",
+      'financial-planning': "Plan your cash needs 2-3 rounds ahead to avoid emergency funding",
+      'strategic-planning': "Write down your 3-round plan and adjust as you learn",
+      'sales-strategy': "Sometimes holding inventory for better market conditions pays off",
       'general-strategy': "Set specific goals each round and track your progress toward them"
     };
     
@@ -274,6 +299,13 @@ Use encouraging, positive language. Be specific about their current situation. K
       'pricing-strategy': ["How do competitors affect my pricing?", "What's the relationship between price and demand?"],
       'market-analysis': ["What economic factors affect robotics demand?", "How do I identify market trends?"],
       'risk-management': ["What are the biggest risks in the robotics industry?", "How do I balance risk and reward?"],
+      'venture-capital-vs-debt': ["When is venture capital better than loans?", "What are the long-term effects of each funding type?"],
+      'equity-dilution': ["How much equity should founders keep?", "What happens if I lose majority control?"],
+      'debt-financing': ["How do interest rates affect my business?", "When is debt dangerous for a startup?"],
+      'funding-strategy': ["How do I know when to raise money?", "What's the best funding mix for growth?"],
+      'financial-planning': ["How far ahead should I plan financially?", "What are the warning signs of cash problems?"],
+      'strategic-planning': ["How do I adapt my strategy to market changes?", "What makes a business plan successful?"],
+      'sales-strategy': ["When should I sell vs hold inventory?", "How do I maximize revenue per robot?"],
       'general-strategy': ["How do I develop a long-term business plan?", "What makes a strategy successful?"]
     };
     
@@ -285,6 +317,13 @@ Use encouraging, positive language. Be specific about their current situation. K
    */
   getFallbackMarketEvent() {
     const fallbackEvents = [
+      {
+        title: "Venture Capital Interest",
+        description: "Robotics startups attracting investor attention. Good time to show growth!",
+        impact: "positive",
+        significance: "medium",
+        educationalTip: "Strong performance attracts better funding terms"
+      },
       {
         title: "Industry Conference",
         description: "Robotics experts share latest innovations. Great time for R&D investments.",
@@ -307,8 +346,8 @@ Use encouraging, positive language. Be specific about their current situation. K
         educationalTip: "Successful companies adapt to changing customer preferences"
       },
       {
-        title: "Funding Opportunity",
-        description: "New investment capital available for innovative robotics companies.",
+        title: "New Funding Opportunities",
+        description: "Investors looking for promising robotics startups. Polish your pitch!",
         impact: "positive",
         significance: "low",
         educationalTip: "Access to capital helps companies grow and innovate"
@@ -352,6 +391,55 @@ Use encouraging, positive language. Be specific about their current situation. K
         gameApplication: "Look at market demand indicators to guide your production decisions each round.",
         tip: "Start conservative - build fewer robots until you understand demand patterns.",
         followUpQuestions: ["How do I predict demand?", "What affects production capacity?"]
+      },
+      'venture-capital-vs-debt': {
+        explanation: "Venture capital means selling part of your company (equity) to investors for money. Debt means borrowing money that you must pay back with interest. Venture capital dilutes your ownership but provides expertise and connections. Debt keeps you in control but requires regular payments.",
+        example: "Uber used venture capital to grow fast without debt, while FedEx used loans to buy trucks.",
+        gameApplication: "Choose equity if you need lots of money and guidance, debt if you want to keep control.",
+        tip: "Never give up more than 49% total equity to maintain control of your company.",
+        followUpQuestions: ["When is venture capital better?", "How do I know if I can afford a loan?"]
+      },
+      'equity-dilution': {
+        explanation: "Equity dilution happens when you sell shares of your company to raise money. If you own 100% and sell 20%, you now own 80%. The more equity you sell, the less control you have over your company's decisions.",
+        example: "Mark Zuckerberg kept control of Facebook by maintaining over 50% voting power.",
+        gameApplication: "Each funding round reduces your ownership percentage - plan carefully!",
+        tip: "Keep at least 51% equity to maintain control of major decisions.",
+        followUpQuestions: ["What happens if I lose majority control?", "How do founders stay in control?"]
+      },
+      'debt-financing': {
+        explanation: "Debt financing means borrowing money that you must repay with interest. It's like taking a loan to buy a car - you get money now but must make regular payments. Unlike equity, you keep full ownership but have the obligation to repay.",
+        example: "Airlines often use loans to buy planes, paying them back with passenger revenue.",
+        gameApplication: "Loans give you cash without diluting equity, but you must afford the payments.",
+        tip: "Only borrow what you can repay from your expected revenue.",
+        followUpQuestions: ["How much debt is too much?", "What if I can't make payments?"]
+      },
+      'funding-strategy': {
+        explanation: "Funding strategy is your plan for raising money to grow your business. Smart founders mix different funding sources - some equity for big growth, some debt for specific assets, and reinvesting profits for organic growth.",
+        example: "SpaceX combined venture capital with government contracts to fund development.",
+        gameApplication: "Plan your funding needs 2-3 rounds ahead to avoid desperate decisions.",
+        tip: "Raise money when you're strong, not when you're desperate.",
+        followUpQuestions: ["When should I raise money?", "How do I attract investors?"]
+      },
+      'financial-planning': {
+        explanation: "Financial planning means looking ahead at your cash needs and making sure you'll have enough money for future rounds. It's like budgeting for a trip - you plan for gas, food, and emergencies before you leave.",
+        example: "Microsoft keeps billions in cash reserves to weather any economic storm.",
+        gameApplication: "Calculate how much cash you'll need for next 2-3 rounds of R&D and production.",
+        tip: "Plan your cash needs 2-3 rounds ahead to avoid emergency funding.",
+        followUpQuestions: ["How do I forecast future cash needs?", "What's a good cash reserve amount?"]
+      },
+      'strategic-planning': {
+        explanation: "Strategic planning is creating a roadmap for your business success. It means setting goals, choosing focus areas, and planning how to beat competitors. Good strategy adapts to changing conditions while keeping long-term goals in mind.",
+        example: "Amazon's strategy was always to become the 'everything store', starting with books.",
+        gameApplication: "Create a 3-round plan: what to research, produce, and how to fund growth.",
+        tip: "Write down your strategy and adjust it based on market conditions.",
+        followUpQuestions: ["How often should I change my strategy?", "What makes a strategy successful?"]
+      },
+      'sales-strategy': {
+        explanation: "Sales strategy is your plan for converting products into revenue. It includes timing (when to sell), pricing (how much to charge), and inventory management (what to keep vs sell). Smart sales maximize profit, not just revenue.",
+        example: "Apple creates scarcity by controlling inventory, which keeps prices high.",
+        gameApplication: "Decide whether to sell all robots now or save some for better market conditions.",
+        tip: "Sometimes holding inventory for better market conditions pays off.",
+        followUpQuestions: ["How do I know the right time to sell?", "Should I always sell everything?"]
       },
       'general-strategy': {
         explanation: "Business strategy is your overall plan for success - how you'll compete, grow, and achieve your goals. It involves making smart decisions about production, pricing, innovation, and resource allocation.",
