@@ -1,15 +1,8 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "buildCommand": "npx vite build",
-        "outputDirectory": "dist"
-      }
-    }
-  ],
+  "buildCommand": "npx vite build",
+  "outputDirectory": "dist",
+  "devCommand": "npx vite dev",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",
@@ -23,10 +16,6 @@
         {
           "key": "Service-Worker-Allowed",
           "value": "/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
         }
       ]
     },
@@ -36,19 +25,6 @@
         {
           "key": "Content-Type",
           "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    },
-    {
-      "source": "/(favicon.*|.*\\.png|.*\\.ico|.*\\.svg)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400"
         }
       ]
     }
