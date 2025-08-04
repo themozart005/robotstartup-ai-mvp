@@ -176,4 +176,4 @@ Ready to transform your classroom? Contact us to begin your beta testing journey
 LevelUp STEM Academy | Makers & Moguls Educational Series
 Contact • Beta Program
 Serving educators and families in USA, UK, Canada, and India
-</div>
+</div>"<!-- Trigger deployment $(date) -->" 
