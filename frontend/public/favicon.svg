@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="14" fill="none" stroke="#5b4a8c" stroke-width="4"/>
+  
+  <!-- Upward trend line (zigzag) -->
+  <path d="M6 20 L12 14 L18 18 L26 8" stroke="#5b4a8c" stroke-width="2.5" fill="none"/>
+  
+  <!-- Diagonal line crossing through -->
+  <path d="M4 28 L28 4" stroke="#5b4a8c" stroke-width="3" fill="none"/>
+</svg>
