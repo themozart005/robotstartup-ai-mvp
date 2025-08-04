@@ -1,5 +1,5 @@
 // frontend/src/pages/HomePage.tsx
-// Fixed API endpoint to match your backend setup
+// COMPLETE FIXED VERSION - With proper API endpoints and error handling
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -57,7 +57,7 @@ const HomePage: React.FC = () => {
     }
   }, [isConnected]);
 
-  // Handle creating a new game - UPDATED API ENDPOINT
+  // FIXED: Handle creating a new game with proper URL handling
   const handleCreateGame = async () => {
     if (!playerName.trim()) {
       alert('Please enter your name!');
@@ -75,42 +75,99 @@ const HomePage: React.FC = () => {
       // Store player name for later use
       localStorage.setItem('playerName', playerName.trim());
       
-      // FIXED: Use full URL with backend port
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-	  const response = await fetch(`${apiUrl}/api/game/create`,  {
+      // FIXED: Get backend URL with proper fallback and validation
+      const getBackendUrl = () => {
+        // Try VITE_BACKEND_URL first, then VITE_API_URL
+        let url = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL;
+        
+        // If no environment variable or it doesn't start with http, use default
+        if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+          console.warn('⚠️ Backend URL not properly configured, using Railway URL');
+          url = 'https://levelup-robot-startup-deployment-production.up.railway.app';
+        }
+        
+        // Remove trailing slash if present
+        url = url.replace(/\/$/, '');
+        
+        console.log('🌐 Using backend URL:', url);
+        return url;
+      };
+      
+      const backendUrl = getBackendUrl();
+      const fullUrl = `${backendUrl}/api/game/create`;
+      
+      console.log('📡 Making API request to:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           playerName: playerName.trim(),
           ...gameSettings
         })
       });
       
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response OK:', response.ok);
+      
+      // Check if response is ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('📡 Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+      }
+      
+      // Check if response has content
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const responseText = await response.text();
+        console.error('📡 Non-JSON response:', responseText);
+        throw new Error('Server returned non-JSON response');
+      }
+      
       const result = await response.json();
+      console.log('📡 API response:', result);
       
       if (result.success) {
-        console.log('Game created successfully:', result.gameId);
+        console.log('✅ Game created successfully:', result.gameId);
         // Navigate to the game
         navigate(`/game/${result.gameId}`);
       } else {
-        alert('Failed to create game: ' + result.message);
+        console.error('❌ Game creation failed:', result.message);
+        alert('Failed to create game: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error creating game:', error);
-      alert('Failed to create game. Please try again.');
+      console.error('❌ Error creating game:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        alert('Cannot connect to game server. Please check your internet connection and try again.');
+      } else if (error.message.includes('HTTP error! status: 405')) {
+        alert('Server configuration error. Please try again in a moment.');
+      } else if (error.message.includes('HTTP error! status: 500')) {
+        alert('Server error occurred. Please try again.');
+      } else if (error.message.includes('non-JSON response')) {
+        alert('Server returned invalid response. Please try again.');
+      } else {
+        alert('Failed to create game. Please check your connection and try again.');
+      }
     } finally {
       setIsCreatingGame(false);
     }
   };
 
-  // Handle joining an existing game - UPDATED
+  // Handle joining an existing game
   const handleJoinGame = () => {
     if (!playerName.trim()) {
       alert('Please enter your name first!');
       return;
     }
     
-    // Navigate to lobby for joining games
+    // Store player name and navigate to lobby
+    localStorage.setItem('playerName', playerName.trim());
     navigate('/lobby');
   };
 
@@ -205,6 +262,11 @@ const HomePage: React.FC = () => {
                 placeholder="Enter your name..."
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:border-blue-400 focus:outline-none"
                 maxLength={20}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && playerName.trim() && isConnected && !isCreatingGame) {
+                    handleCreateGame();
+                  }
+                }}
               />
             </div>
 
@@ -309,14 +371,23 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Connection Status */}
-            {!isConnected && (
-              <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                <div className="flex items-center gap-2 text-red-300">
-                  <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-                  Connecting to server...
+            <div className="mt-4">
+              {!isConnected ? (
+                <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-300">
+                    <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+                    Connecting to server...
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="p-3 bg-green-500/20 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-300">
+                    <div className="w-2 h-2 bg-green-400 rounded-full" />
+                    Connected to game server
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
 

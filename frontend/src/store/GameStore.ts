@@ -1,5 +1,5 @@
 // frontend/src/store/GameStore.ts
-// COMPLETE VERSION - With funding system support and updated phase info
+// COMPLETE FIXED VERSION - With proper socket handlers and funding system support
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
@@ -243,14 +243,22 @@ export const useGameStore = create<GameStore>()(
     isProcessingMove: false,
     socketEventHandlers: new Map(),
 
-    // Socket event handler setup using dynamic import
+    // FIXED: Socket event handler setup with proper error handling
     initializeSocketHandlers: async () => {
       try {
-        // Use dynamic import instead of require()
-        const { socketService } = await import('../services/SocketService');
+        // Use dynamic import with proper error handling
+        const socketModule = await import('../services/SocketService');
+        const socketService = socketModule.socketService;
+        
+        // Verify socketService has the required methods
+        if (!socketService || typeof socketService.on !== 'function') {
+          console.error('❌ GameStore: socketService does not have required methods');
+          return;
+        }
+        
         const handlers = new Map();
 
-        // Handler for game state updates
+        // Handler for game state updates  
         const gameUpdatedHandler = (gameState: GameState) => {
           console.log('🎮 GameStore: Received game state update:', gameState);
           
@@ -277,7 +285,7 @@ export const useGameStore = create<GameStore>()(
           }
         };
 
-        // Handler for successful game join
+        // Handler for successful game join - FIXED event names to match SocketService
         const joinSuccessHandler = (data: any) => {
           console.log('🎮 GameStore: Join success:', data);
           
@@ -330,30 +338,28 @@ export const useGameStore = create<GameStore>()(
           console.log('🤖 GameStore: AI tutoring received:', response);
           set({ aiTutoring: response });
         };
-		
-		// Handler for market updates
-		const marketUpdateHandler = (updateData: any) => {
-	      console.log('📊 GameStore: Market update received:', updateData);
-  
-		  const currentGame = get().currentGame;
-		  if (currentGame && updateData.newConditions) {
-            // Update market conditions
-			const updatedGame = {
-			  ...currentGame,
-			  marketConditions: updateData.newConditions,
-			  eventHistory: updateData.event ? 
-				[...currentGame.eventHistory, updateData.event] : 
-				currentGame.eventHistory
-			};
-    
-			set({ currentGame: updatedGame });
-    
-			// Show toast notification for market events
-			if (updateData.event) {
-			  toast.success(`📊 Market Update: ${updateData.event.title}`);
-			}
-		  }
-		};
+
+        // Handler for market updates
+        const marketUpdateHandler = (updateData: any) => {
+          console.log('📊 GameStore: Market update received:', updateData);
+
+          const currentGame = get().currentGame;
+          if (currentGame && updateData.newConditions) {
+            const updatedGame = {
+              ...currentGame,
+              marketConditions: updateData.newConditions,
+              eventHistory: updateData.event ? 
+                [...currentGame.eventHistory, updateData.event] : 
+                currentGame.eventHistory
+            };
+
+            set({ currentGame: updatedGame });
+
+            if (updateData.event) {
+              toast.success(`📊 Market Update: ${updateData.event.title}`);
+            }
+          }
+        };
 
         // Handler for game ending
         const gameEndedHandler = (endData: any) => {
@@ -371,7 +377,6 @@ export const useGameStore = create<GameStore>()(
             
             set({ currentGame: updatedGame });
             
-            // Show winner announcement
             const myPlayer = get().getMyPlayer();
             if (endData.winner && myPlayer) {
               if (endData.winner.id === myPlayer.id) {
@@ -383,23 +388,28 @@ export const useGameStore = create<GameStore>()(
           }
         };
 
-        // Store handlers
+        // Store handlers with correct event names to match your SocketService
         handlers.set('game-updated', gameUpdatedHandler);
-        handlers.set('join-game-success', joinSuccessHandler);
-        handlers.set('join-game-error', joinErrorHandler);
+        handlers.set('join-success', joinSuccessHandler);      // Match SocketService event names
+        handlers.set('join-error', joinErrorHandler);          // Match SocketService event names  
         handlers.set('move-success', moveSuccessHandler);
         handlers.set('move-error', moveErrorHandler);
         handlers.set('ai-tutoring', aiTutoringHandler);
-		handlers.set('market-update', marketUpdateHandler);
+        handlers.set('market-update', marketUpdateHandler);
         handlers.set('game-ended', gameEndedHandler);
 
-        // Register with socket service
-        handlers.forEach((handler, event) => {
-          socketService.on(event, handler);
-        });
-
-        set({ socketEventHandlers: handlers });
-        console.log('🔧 GameStore: Socket event handlers initialized');
+        // Register with socket service - FIXED ERROR HANDLING
+        try {
+          handlers.forEach((handler, event) => {
+            socketService.on(event, handler);
+          });
+          
+          set({ socketEventHandlers: handlers });
+          console.log('🔧 GameStore: Socket event handlers initialized successfully');
+        } catch (error) {
+          console.error('❌ GameStore: Error registering socket handlers:', error);
+        }
+        
       } catch (error) {
         console.error('❌ GameStore: Failed to initialize socket handlers:', error);
       }
@@ -744,20 +754,6 @@ export const gameHelpers = {
     return fundingRounds.reduce((total, round) => total + round.amount, 0);
   },
 
-  // NEW: Calculate active marketing effects
-  calculateActiveMarketingEffects: (player: Player, currentRound: number): MarketingEffect[] => {
-    const marketingEffects = player.marketingEffects || [];
-    return marketingEffects.filter(effect => 
-      currentRound <= effect.roundStarted + effect.duration
-    );
-  },
-
-  // NEW: Calculate current sales boost from marketing
-  calculateMarketingSalesBoost: (player: Player, currentRound: number): number => {
-    const activeEffects = gameHelpers.calculateActiveMarketingEffects(player, currentRound);
-    return activeEffects.reduce((total, effect) => total + effect.salesBoost, 0);
-  },
-
   // NEW: Get equity status color
   getEquityColor: (equity: number): string => {
     if (equity >= 80) return 'text-green-600';
@@ -786,18 +782,6 @@ export const gameHelpers = {
     return player.cash >= cost;
   },
 
-  getRiskLevel: (player: Player): 'low' | 'medium' | 'high' => {
-    const assets = gameHelpers.calculatePlayerAssets(player);
-    const debt = gameHelpers.calculatePlayerDebt(player);
-    
-    if (assets === 0) return 'high';
-    
-    const debtRatio = debt / assets;
-    if (debtRatio < 0.3) return 'low';
-    if (debtRatio < 0.6) return 'medium';
-    return 'high';
-  },
-
   formatCurrency: (amount: number): string => {
     if (amount >= 1000000) {
       return `$${(amount / 1000000).toFixed(1)}M`;
@@ -821,42 +805,6 @@ export const gameHelpers = {
       high: 'High demand - great time to maximize production and sales'
     };
     return descriptions[demand as keyof typeof descriptions] || 'Market conditions unclear';
-  },
-
-  calculateExpectedROI: (investment: number, benefit: number, duration: number): number => {
-    const totalBenefit = benefit * duration;
-    return ((totalBenefit - investment) / investment) * 100;
-  },
-
-  // NEW: Get phase-appropriate advice
-  getPhaseAdvice: (phase: string, round: number, player: Player): string => {
-    switch (phase) {
-      case 'bootstrap':
-        return 'Focus on proving your concept with minimal resources. Every dollar counts!';
-      case 'funding':
-        return `Consider your funding options carefully. Equity dilutes ownership but provides capital without debt.`;
-      case 'r&d':
-        return round === 1 
-          ? 'Invest in core technologies that prove your concept works.'
-          : 'Advanced technologies give you competitive advantages in the market.';
-      case 'production':
-        const capacity = gameHelpers.calculateProductionCapacity(player, round);
-        return round === 1
-          ? `Build enough units to test market demand. You can produce up to ${capacity} robots.`
-          : `Scale production to meet demand. Your funding allows up to ${capacity} robots this round!`;
-      case 'sales':
-        return round === 1
-          ? 'Focus on early adopters who will validate your product-market fit.'
-          : 'Expand your customer base and maximize revenue from proven demand.';
-      case 'growth':
-        return round === 1
-          ? 'Build foundation for future growth: brand awareness and partnerships.'
-          : 'Scale your marketing and operations to capture maximum market share.';
-      case 'finished':
-        return 'Game complete! Review your entrepreneurial journey and final results.';
-      default:
-        return 'Make strategic decisions based on your current business stage.';
-    }
   },
 
   // NEW: Calculate production capacity (mirrors backend logic)
