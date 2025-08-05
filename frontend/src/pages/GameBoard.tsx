@@ -287,7 +287,7 @@ const GameBoard: React.FC = () => {
       
       // FIXED: Only console.log, no other debug calls
       setDebugInfo('✅ Fallback game created with new phase structure');
-      toast.info('Playing in offline mode');
+      toastconsole.log('Playing in offline mode');
     };
 
     initializeGame();
