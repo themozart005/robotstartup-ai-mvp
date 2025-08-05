@@ -666,13 +666,63 @@ class SocketService {
   }
 
   /**
-   * Check if we're connected to the server
+   * Event listener management (Socket.IO style interface for GameStore compatibility)
    */
-  isConnected(): boolean {
+  on(event: string, callback: Function) {
     try {
-      return this.socket?.connected || false;
+      if (!this.socket) {
+        safeLog.warn('⚠️ Cannot add listener - socket not connected');
+        return;
+      }
+      
+      safeLog.log(`📡 Adding listener for event: ${event}`);
+      this.socket.on(event, callback);
     } catch (error) {
-      return false;
+      safeLog.error('❌ Error adding event listener:', error);
+    }
+  }
+
+  /**
+   * Remove event listener (Socket.IO style interface)
+   */
+  off(event: string, callback?: Function) {
+    try {
+      if (!this.socket) {
+        safeLog.warn('⚠️ Cannot remove listener - socket not connected');
+        return;
+      }
+      
+      safeLog.log(`📡 Removing listener for event: ${event}`);
+      if (callback) {
+        this.socket.off(event, callback);
+      } else {
+        this.socket.off(event);
+      }
+    } catch (error) {
+      safeLog.error('❌ Error removing event listener:', error);
+    }
+  }
+
+  /**
+   * Request AI help (GameStore compatibility)
+   */
+  requestHelp(concept: string, context?: any) {
+    try {
+      if (!this.socket?.connected) {
+        safeLog.error('Cannot request help - not connected to server');
+        safeToast.error('Not connected to server');
+        return;
+      }
+
+      safeLog.log('🤖 Requesting AI help for concept:', concept);
+      
+      this.socket.emit('request-help', {
+        concept,
+        context
+      });
+    } catch (error) {
+      safeLog.error('❌ Error requesting help:', error);
+      safeToast.error('Failed to request help');
     }
   }
 
@@ -838,27 +888,6 @@ const socketService = {
   getConnectionStatus: () => socketServiceInstance.getConnectionStatus.call(socketServiceInstance),
   verifyMethods: () => socketServiceInstance.verifyMethods.call(socketServiceInstance),
   
-  // ADD MISSING METHODS that GameStore expects
-  on: (event: string, callback: Function) => {
-    safeLog.log('🔧 socketService.on called for event:', event);
-    // For compatibility - most events are handled internally now
-    return true;
-  },
-  
-  off: (event: string, callback?: Function) => {
-    safeLog.log('🔧 socketService.off called for event:', event);
-    // For compatibility - most events are handled internally now
-    return true;
-  },
-  
-  requestHelp: (concept: string, context?: any) => {
-    safeLog.log('🤖 requestHelp called for concept:', concept);
-    // Emit request-help via the socket
-    if (socketServiceInstance.socket?.connected) {
-      socketServiceInstance.socket.emit('request-help', { concept, context });
-    }
-  },
-  
   // Debug method to check if all methods are working
   debugMethods: () => {
     const methods = {
@@ -866,10 +895,7 @@ const socketService = {
       connect: typeof socketService.connect,
       joinGame: typeof socketService.joinGame,
       makeMove: typeof socketService.makeMove,
-      isConnected: typeof socketService.isConnected,
-      on: typeof socketService.on,
-      off: typeof socketService.off,
-      requestHelp: typeof socketService.requestHelp
+      isConnected: typeof socketService.isConnected
     };
     safeLog.log('🔍 SocketService method check:', methods);
     return methods;
