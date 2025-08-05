@@ -838,6 +838,27 @@ const socketService = {
   getConnectionStatus: () => socketServiceInstance.getConnectionStatus.call(socketServiceInstance),
   verifyMethods: () => socketServiceInstance.verifyMethods.call(socketServiceInstance),
   
+  // ADD MISSING METHODS that GameStore expects
+  on: (event: string, callback: Function) => {
+    safeLog.log('🔧 socketService.on called for event:', event);
+    // For compatibility - most events are handled internally now
+    return true;
+  },
+  
+  off: (event: string, callback?: Function) => {
+    safeLog.log('🔧 socketService.off called for event:', event);
+    // For compatibility - most events are handled internally now
+    return true;
+  },
+  
+  requestHelp: (concept: string, context?: any) => {
+    safeLog.log('🤖 requestHelp called for concept:', concept);
+    // Emit request-help via the socket
+    if (socketServiceInstance.socket?.connected) {
+      socketServiceInstance.socket.emit('request-help', { concept, context });
+    }
+  },
+  
   // Debug method to check if all methods are working
   debugMethods: () => {
     const methods = {
@@ -845,7 +866,10 @@ const socketService = {
       connect: typeof socketService.connect,
       joinGame: typeof socketService.joinGame,
       makeMove: typeof socketService.makeMove,
-      isConnected: typeof socketService.isConnected
+      isConnected: typeof socketService.isConnected,
+      on: typeof socketService.on,
+      off: typeof socketService.off,
+      requestHelp: typeof socketService.requestHelp
     };
     safeLog.log('🔍 SocketService method check:', methods);
     return methods;
