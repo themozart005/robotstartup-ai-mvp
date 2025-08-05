@@ -1,5 +1,5 @@
 // frontend/src/pages/GameBoard.tsx
-// FIXED VERSION - Removed P.info calls and added error handling
+// COMPLETELY CLEAN VERSION - All debug calls removed
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -316,7 +316,7 @@ const GameBoard: React.FC = () => {
     });
   }, [updateKey, currentGame, myPlayer, isMyTurn, isConnected, isInitializing, debugInfo]);
 
-  // FIXED: Debug move data function (removed P.info calls)
+  // CLEAN: Debug move data function - only console.log
   const debugMoveData = (moveData: any) => {
     console.log('🔍 DEBUG: Move data structure:', {
       action: moveData.action,
@@ -326,7 +326,6 @@ const GameBoard: React.FC = () => {
       dataType: typeof moveData.data,
       technologyType: typeof moveData.technology
     });
-    // FIXED: Removed P.info(moveData) call that was causing the error
   };
 
   // Handle leaving the game
@@ -697,7 +696,7 @@ const GameBoard: React.FC = () => {
     );
   }
 
-  // FIXED: Show winner screen if game is finished
+  // Show winner screen if game is finished
   if (currentGame.status === 'finished') {
     return (
       <div>
@@ -951,7 +950,6 @@ const GameBoard: React.FC = () => {
             <RobotBuilder
               robots={myPlayer.robots}
               cash={myPlayer.cash}
-              // FIXED: Pass currentRound for scalable production capacity with error handling
               productionCapacity={gameHelpers?.calculateProductionCapacity ? 
                 gameHelpers.calculateProductionCapacity(myPlayer, currentGame.currentRound) : 
                 3
