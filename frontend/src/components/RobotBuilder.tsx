@@ -1,5 +1,5 @@
 // frontend/src/components/RobotBuilder.tsx
-// ENHANCED VERSION - With robot type images and visual improvements
+// FIXED VERSION - Removed external image dependencies and improved error handling
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,13 +28,12 @@ interface RobotBuilderProps {
   onRequestHelp: () => void;
 }
 
-// Robot type data with images and detailed info
+// Robot type data with gradient backgrounds instead of external images
 const ROBOT_TYPES = {
   service: {
     name: 'Service Robot',
     icon: '🤖',
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop&crop=center',
-    fallbackColor: 'from-blue-500 to-cyan-500',
+    gradient: 'from-blue-500 to-cyan-500',
     description: 'Customer service and hospitality robots',
     baseCost: 100000,
     marketDemand: 'High',
@@ -51,8 +50,7 @@ const ROBOT_TYPES = {
   mobile: {
     name: 'Mobile Robot',
     icon: '🚛',
-    image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop&crop=center',
-    fallbackColor: 'from-orange-500 to-red-500',
+    gradient: 'from-orange-500 to-red-500',
     description: 'Autonomous delivery and transportation',
     baseCost: 120000,
     marketDemand: 'Very High',
@@ -69,8 +67,7 @@ const ROBOT_TYPES = {
   industrial: {
     name: 'Industrial Robot',
     icon: '🏭',
-    image: 'https://images.unsplash.com/photo-1565192727964-6a5b8c5b0a5a?w=400&h=300&fit=crop&crop=center',
-    fallbackColor: 'from-gray-600 to-gray-800',
+    gradient: 'from-gray-600 to-gray-800',
     description: 'Heavy-duty manufacturing and automation',
     baseCost: 150000,
     marketDemand: 'High',
@@ -87,8 +84,7 @@ const ROBOT_TYPES = {
   humanoid: {
     name: 'Humanoid Robot',
     icon: '🦾',
-    image: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=400&h=300&fit=crop&crop=center',
-    fallbackColor: 'from-purple-500 to-indigo-500',
+    gradient: 'from-purple-500 to-indigo-500',
     description: 'Advanced human-like interaction robots',
     baseCost: 200000,
     marketDemand: 'Medium',
@@ -105,8 +101,7 @@ const ROBOT_TYPES = {
   medical: {
     name: 'Medical Robot',
     icon: '🏥',
-    image: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop&crop=center',
-    fallbackColor: 'from-green-500 to-teal-500',
+    gradient: 'from-green-500 to-teal-500',
     description: 'Precision healthcare and surgical assistance',
     baseCost: 250000,
     marketDemand: 'High',
@@ -190,52 +185,40 @@ const RobotBuilder: React.FC<RobotBuilderProps> = ({
   const handleBuild = () => {
     if (!selectedRobotType || !canBuild) return;
     
-    onBuildRobot({
-      robotType: selectedRobotType,
-      quantity: quantity,
-      components: selectedComponents
-    });
-    
-    // Reset form
-    setSelectedRobotType(null);
-    setQuantity(1);
-    setSelectedComponents([]);
+    try {
+      onBuildRobot({
+        robotType: selectedRobotType,
+        quantity: quantity,
+        components: selectedComponents
+      });
+      
+      // Reset form
+      setSelectedRobotType(null);
+      setQuantity(1);
+      setSelectedComponents([]);
+    } catch (error) {
+      console.error('Error building robot:', error);
+    }
   };
 
-  // Robot image component with fallback
-  const RobotImage: React.FC<{ robotType: keyof typeof ROBOT_TYPES; size?: 'small' | 'large' }> = ({ 
+  // Robot visual component with gradient background instead of images
+  const RobotVisual: React.FC<{ robotType: keyof typeof ROBOT_TYPES; size?: 'small' | 'large' }> = ({ 
     robotType, 
     size = 'small' 
   }) => {
     const robot = ROBOT_TYPES[robotType];
-    const [imageError, setImageError] = useState(false);
-
-    if (imageError) {
-      // Fallback to gradient background with icon
-      return (
-        <div className={`
-          ${size === 'small' ? 'w-16 h-16' : 'w-32 h-32'} 
-          bg-gradient-to-br ${robot.fallbackColor} 
-          rounded-lg flex items-center justify-center
-        `}>
-          <span className={`${size === 'small' ? 'text-2xl' : 'text-4xl'}`}>
-            {robot.icon}
-          </span>
-        </div>
-      );
-    }
 
     return (
-      <img
-        src={robot.image}
-        alt={robot.name}
-        className={`
-          ${size === 'small' ? 'w-16 h-16' : 'w-32 h-32'} 
-          object-cover rounded-lg shadow-md
-        `}
-        onError={() => setImageError(true)}
-        loading="lazy"
-      />
+      <div className={`
+        ${size === 'small' ? 'w-16 h-16' : 'w-32 h-32'} 
+        bg-gradient-to-br ${robot.gradient} 
+        rounded-lg flex items-center justify-center
+        border border-white/20 shadow-lg
+      `}>
+        <span className={`${size === 'small' ? 'text-2xl' : 'text-4xl'}`}>
+          {robot.icon}
+        </span>
+      </div>
     );
   };
 
@@ -269,22 +252,22 @@ const RobotBuilder: React.FC<RobotBuilderProps> = ({
             return (
               <motion.div
                 key={robotType}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isAffordable ? 1.02 : 1 }}
+                whileTap={{ scale: isAffordable ? 0.98 : 1 }}
                 onClick={() => isAffordable && handleRobotSelect(robotType)}
                 className={`
-                  p-3 rounded-lg border-2 cursor-pointer transition-all relative
+                  p-3 rounded-lg border-2 transition-all relative
                   ${isSelected 
                     ? 'border-blue-500 bg-blue-500/20' 
                     : isAffordable 
-                    ? 'border-gray-600 bg-white/5 hover:border-gray-500' 
+                    ? 'border-gray-600 bg-white/5 hover:border-gray-500 cursor-pointer' 
                     : 'border-gray-700 bg-gray-800/50 opacity-50 cursor-not-allowed'
                   }
                 `}
               >
                 <div className="flex items-center gap-3">
-                  {/* Robot Image */}
-                  <RobotImage robotType={robotType} size="small" />
+                  {/* Robot Visual */}
+                  <RobotVisual robotType={robotType} size="small" />
                   
                   {/* Robot Info */}
                   <div className="flex-1 min-w-0">
@@ -339,9 +322,9 @@ const RobotBuilder: React.FC<RobotBuilderProps> = ({
                       className="mt-3 pt-3 border-t border-gray-600"
                     >
                       <div className="grid grid-cols-2 gap-4">
-                        {/* Large Image */}
+                        {/* Large Visual */}
                         <div className="flex justify-center">
-                          <RobotImage robotType={robotType} size="large" />
+                          <RobotVisual robotType={robotType} size="large" />
                         </div>
                         
                         {/* Details */}
