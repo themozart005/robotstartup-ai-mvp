@@ -1,75 +1,56 @@
 // frontend/src/services/SocketService.ts
-// PRODUCTION-READY VERSION - Fixed syntax error for deployment
+// PRODUCTION-READY VERSION - Simple and reliable for deployment
 
 import io from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 
-// Safe environment variable getter that works in production builds
-const getEnvVar = (key: string, fallback?: string): string | undefined => {
-  try {
-    // For Vite builds (checks for import.meta.env safely)
-    if (typeof window !== 'undefined' && (window as any).import?.meta?.env) {
-      return (window as any).import.meta.env[key] || fallback;
-    }
-    
-    // Direct access for Vite (this is the main one that works)
-    try {
-      // @ts-ignore - Safe access to import.meta.env
-      if (import.meta?.env) {
-        // @ts-ignore
-        return import.meta.env[key] || import.meta.env[`VITE_${key}`] || fallback;
-      }
-    } catch (e) {
-      // Fallback if import.meta not available
-    }
-    
-    // Fallback to process.env for other bundlers
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key] || process.env[`REACT_APP_${key}`] || process.env[`VITE_${key}`] || fallback;
-    }
-    
-    return fallback;
-  } catch (error) {
-    return fallback;
+// Simple production detection
+const isProduction = () => {
+  return window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         !window.location.hostname.includes('localhost');
+};
+
+// Get API URL with hardcoded fallback for production
+const getApiUrl = (): string => {
+  if (isProduction()) {
+    // REPLACE THIS WITH YOUR ACTUAL RAILWAY URL
+    return 'https://levelup-robot-startup-deployment-production.up.railway.app';
+  } else {
+    // Development
+    return 'http://localhost:5000';
   }
 };
 
-// Safe console logging to prevent minification issues
+// Safe console logging
 const safeLog = {
   log: (message: string, ...args: any[]) => {
     try {
-      if (typeof console !== 'undefined' && console.log) {
-        console.log(message, ...args);
-      }
+      console.log(message, ...args);
     } catch (e) {
-      // Silent fail in production
+      // Silent fail
     }
   },
   warn: (message: string, ...args: any[]) => {
     try {
-      if (typeof console !== 'undefined' && console.warn) {
-        console.warn(message, ...args);
-      }
+      console.warn(message, ...args);
     } catch (e) {
-      // Silent fail in production
+      // Silent fail
     }
   },
   error: (message: string, ...args: any[]) => {
     try {
-      if (typeof console !== 'undefined' && console.error) {
-        console.error(message, ...args);
-      }
+      console.error(message, ...args);
     } catch (e) {
-      // Silent fail in production
+      // Silent fail
     }
   }
 };
 
-// Safe toast function to prevent dependency issues
+// Safe toast function
 const safeToast = {
   success: (message: string, options?: any) => {
     try {
-      // Dynamic import to prevent build issues
       import('react-hot-toast').then(({ default: toast }) => {
         toast.success(message, options);
       }).catch(() => {
@@ -122,7 +103,7 @@ interface SocketHandlers {
   onError?: (error: any) => void;
   onDisconnect?: () => void;
   onConnect?: () => void;
-  [key: string]: any; // Allow additional handlers
+  [key: string]: any;
 }
 
 class SocketService {
@@ -131,8 +112,8 @@ class SocketService {
   private maxReconnectAttempts = 5;
   private isConnecting = false;
   private connectionPromise: Promise<void> | null = null;
-  private joinAttempts = new Set<string>(); // Track join attempts to prevent duplicates
-  private handlers: SocketHandlers = {}; // Store handlers for GameStore
+  private joinAttempts = new Set<string>();
+  private handlers: SocketHandlers = {};
 
   constructor() {
     // Initialize when needed
@@ -140,20 +121,11 @@ class SocketService {
 
   /**
    * REQUIRED METHOD: Initialize socket handlers (called by GameStore)
-   * This fixes the "socketService does not have required methods" error
    */
   public initializeSocketHandlers(handlers: SocketHandlers): void {
     try {
       safeLog.log('🔧 Initializing socket handlers');
       this.handlers = { ...handlers };
-      
-      // Validate required handlers
-      const requiredHandlers = ['onGameJoined', 'onGameUpdated', 'onError'];
-      const missingHandlers = requiredHandlers.filter(handler => !handlers[handler]);
-      
-      if (missingHandlers.length > 0) {
-        safeLog.warn('⚠️ Missing socket handlers:', missingHandlers);
-      }
       
       // If socket is already connected, set up the event listeners
       if (this.socket?.connected) {
@@ -165,105 +137,24 @@ class SocketService {
   }
 
   /**
-   * Get the correct API URL based on environment
-   */
-  private getApiUrl(): string {
-    try {
-      // Check if we're in production
-      const nodeEnv = getEnvVar('NODE_ENV');
-      const mode = getEnvVar('MODE');
-      const isProduction = nodeEnv === 'production' || mode === 'production' || 
-                          getEnvVar('VITE_NODE_ENV') === 'production' ||
-                          getEnvVar('REACT_APP_NODE_ENV') === 'production';
-
-      if (isProduction) {
-        // Production environment (deployed)
-        const backendUrl = getEnvVar('VITE_BACKEND_URL') || 
-                          getEnvVar('REACT_APP_BACKEND_URL') || 
-                          getEnvVar('VITE_API_URL') ||
-                          getEnvVar('REACT_APP_API_URL');
-        
-        if (!backendUrl) {
-          safeLog.warn('⚠️ Backend URL not set in production, using fallback');
-          // Replace with your actual Railway URL
-          return 'https://levelup-robot-startup-deployment-production.up.railway.app';
-        }
-        
-        safeLog.log('🌐 Using production API URL:', backendUrl);
-        return backendUrl;
-      }
-      
-      // Development environment (local)
-      const devUrl = getEnvVar('VITE_BACKEND_URL') || 
-                    getEnvVar('REACT_APP_BACKEND_URL') || 
-                    'http://localhost:5000';
-      
-      safeLog.log('🛠️ Using development API URL:', devUrl);
-      return devUrl;
-    } catch (error) {
-      safeLog.error('❌ Error getting API URL:', error);
-      return 'http://localhost:5000'; // Safe fallback
-    }
-  }
-
-  /**
-   * Get optimized socket configuration based on environment
-   */
-  private getSocketConfig() {
-    try {
-      const nodeEnv = getEnvVar('NODE_ENV');
-      const mode = getEnvVar('MODE');
-      const isProduction = nodeEnv === 'production' || mode === 'production';
-      
-      return {
-        transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
-        timeout: isProduction ? 20000 : 10000, // Longer timeout for production
-        forceNew: false, // Prevent unnecessary reconnections
-        reconnection: true,
-        reconnectionAttempts: isProduction ? 10 : 5,
-        reconnectionDelay: isProduction ? 2000 : 1000,
-        reconnectionDelayMax: 5000,
-        // Additional production optimizations
-        ...(isProduction && {
-          upgrade: true,
-          rememberUpgrade: true,
-          autoConnect: true
-        })
-      };
-    } catch (error) {
-      safeLog.error('❌ Error getting socket config:', error);
-      return {
-        transports: ['websocket', 'polling'],
-        timeout: 10000,
-        reconnection: true,
-        reconnectionAttempts: 5
-      };
-    }
-  }
-
-  /**
-   * Connect to the game server with improved error handling
+   * Connect to the game server
    */
   async connect(): Promise<void> {
     try {
-      // If already connecting, return the existing promise
       if (this.connectionPromise) {
         return this.connectionPromise;
       }
 
-      // If already connected, resolve immediately
       if (this.socket?.connected) {
         safeLog.log('Already connected to server');
         return Promise.resolve();
       }
 
-      // Create new connection promise
       this.connectionPromise = this.createConnection();
       
       try {
         await this.connectionPromise;
       } finally {
-        // Clear the promise when done (success or failure)
         this.connectionPromise = null;
       }
     } catch (error) {
@@ -282,21 +173,29 @@ class SocketService {
 
         this.isConnecting = true;
         
-        const apiUrl = this.getApiUrl();
-        const socketConfig = this.getSocketConfig();
+        const apiUrl = getApiUrl();
+        const isProd = isProduction();
         
         safeLog.log('🔄 Creating socket connection to:', apiUrl);
-        safeLog.log('⚙️ Socket configuration:', socketConfig);
+        safeLog.log('🌍 Environment:', isProd ? 'Production' : 'Development');
 
-        // Create socket with environment-aware settings
-        this.socket = io(apiUrl, socketConfig);
+        // Create socket with production-ready settings
+        this.socket = io(apiUrl, {
+          transports: ['websocket', 'polling'],
+          timeout: isProd ? 20000 : 10000,
+          forceNew: false,
+          reconnection: true,
+          reconnectionAttempts: isProd ? 10 : 5,
+          reconnectionDelay: isProd ? 2000 : 1000,
+          reconnectionDelayMax: 5000,
+          upgrade: true,
+          rememberUpgrade: true,
+          autoConnect: true
+        });
 
         safeLog.log('📡 Socket created successfully');
 
-        // Set connection timeout
-        const nodeEnv = getEnvVar('NODE_ENV');
-        const isProduction = nodeEnv === 'production';
-        const timeoutMs = isProduction ? 25000 : 15000;
+        const timeoutMs = isProd ? 25000 : 15000;
         
         const connectionTimeout = setTimeout(() => {
           if (this.isConnecting) {
@@ -317,17 +216,14 @@ class SocketService {
           clearTimeout(connectionTimeout);
           this.isConnecting = false;
           this.reconnectAttempts = 0;
-          this.joinAttempts.clear(); // Clear join attempts on new connection
+          this.joinAttempts.clear();
           
-          // Set up all event listeners
           this.setupEventListeners();
           
-          // Notify handlers
           if (this.handlers.onConnect) {
             this.handlers.onConnect();
           }
           
-          // Notify game store
           this.notifyConnectionStatus(true);
           
           resolve();
@@ -339,18 +235,13 @@ class SocketService {
           clearTimeout(connectionTimeout);
           this.isConnecting = false;
           
-          // Notify handlers
           if (this.handlers.onError) {
             this.handlers.onError(error);
           }
           
           this.notifyConnectionStatus(false);
           
-          // Provide helpful error message based on environment
-          const nodeEnv = getEnvVar('NODE_ENV');
-          const isProduction = nodeEnv === 'production';
-          
-          if (isProduction) {
+          if (isProd) {
             safeToast.error('Unable to connect to game server. Please check your internet connection.');
           } else {
             safeToast.error('Backend server not running. Start with: npm run dev');
@@ -395,15 +286,13 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
       safeLog.log('🔌 Disconnected:', reason);
       this.notifyConnectionStatus(false);
-      this.joinAttempts.clear(); // Clear join attempts on disconnect
+      this.joinAttempts.clear();
       
-      // Notify handlers
       if (this.handlers.onDisconnect) {
         this.handlers.onDisconnect();
       }
       
       if (reason === 'io server disconnect') {
-        // Server initiated disconnect, try to reconnect
         safeToast.error('Server disconnected. Attempting to reconnect...');
         setTimeout(() => this.connect(), 2000);
       }
@@ -422,7 +311,7 @@ class SocketService {
       safeLog.log('✅ Successfully reconnected to server');
       safeToast.success('Reconnected to server!', { id: 'reconnect' });
       this.reconnectAttempts = 0;
-      this.joinAttempts.clear(); // Clear join attempts on reconnect
+      this.joinAttempts.clear();
       this.notifyConnectionStatus(true);
     });
 
@@ -447,7 +336,6 @@ class SocketService {
       safeLog.log('🎮 Game state updated:', gameState.id);
       this.updateGameStore('setCurrentGame', gameState);
       
-      // Notify handlers
       if (this.handlers.onGameUpdated) {
         this.handlers.onGameUpdated(gameState);
       }
@@ -468,7 +356,7 @@ class SocketService {
       this.updateGameStore('setCurrentGame', gameState);
     });
 
-    // Join game responses - FIXED event names to match backend
+    // Join game responses
     this.socket.on('join-game-success', (data) => {
       safeLog.log('🎮 Join success:', data);
       
@@ -478,7 +366,6 @@ class SocketService {
         this.updateGameStore('setLoading', false);
         safeToast.success('Successfully joined game!');
         
-        // Notify handlers
         if (this.handlers.onGameJoined) {
           this.handlers.onGameJoined(data);
         }
@@ -490,7 +377,6 @@ class SocketService {
       this.updateGameStore('setLoading', false);
       safeToast.error(data.message || 'Failed to join game');
       
-      // Notify handlers
       if (this.handlers.onError) {
         this.handlers.onError(new Error(data.message || 'Failed to join game'));
       }
@@ -510,7 +396,6 @@ class SocketService {
         safeToast.success(data.moveResult.message);
       }
       
-      // Notify handlers
       if (this.handlers.onPlayerAction) {
         this.handlers.onPlayerAction(data);
       }
@@ -522,7 +407,6 @@ class SocketService {
       this.updateGameStore('setPendingMove', null);
       safeToast.error(data.message || 'Move failed');
       
-      // Notify handlers
       if (this.handlers.onError) {
         this.handlers.onError(new Error(data.message || 'Move failed'));
       }
@@ -548,7 +432,6 @@ class SocketService {
     this.socket.on('game-finished', (data) => {
       const { winner, finalScores } = data;
       safeLog.log('🏁 Game finished. Winner:', winner?.name);
-      
       this.checkGameWinner(winner);
     });
 
@@ -557,7 +440,6 @@ class SocketService {
       safeLog.error('🚨 Server error:', data.message);
       safeToast.error(data.message || 'Server error occurred');
       
-      // Notify handlers
       if (this.handlers.onError) {
         this.handlers.onError(new Error(data.message || 'Server error occurred'));
       }
@@ -586,7 +468,7 @@ class SocketService {
   }
 
   /**
-   * Join a game session - FIXED with duplicate prevention
+   * Join a game session
    */
   joinGame(gameId: string, playerName: string, playerType: 'human' | 'ai' = 'human') {
     try {
@@ -594,7 +476,6 @@ class SocketService {
         safeLog.error('Cannot join game - not connected to server');
         safeToast.error('Not connected to server. Trying to reconnect...');
         
-        // Try to reconnect and then join
         this.connect().then(() => {
           if (this.socket?.connected) {
             this.joinGame(gameId, playerName, playerType);
@@ -606,7 +487,6 @@ class SocketService {
         return;
       }
 
-      // CRITICAL FIX: Prevent duplicate join attempts
       const joinKey = `${gameId}-${playerName}`;
       if (this.joinAttempts.has(joinKey)) {
         safeLog.log('🚫 Duplicate join attempt prevented for:', joinKey);
@@ -615,10 +495,8 @@ class SocketService {
 
       safeLog.log('🎮 Joining game:', gameId, 'as', playerName);
       
-      // Track this join attempt
       this.joinAttempts.add(joinKey);
       
-      // Clear the join attempt after 5 seconds to allow retry if needed
       setTimeout(() => {
         this.joinAttempts.delete(joinKey);
       }, 5000);
@@ -739,9 +617,9 @@ class SocketService {
         connecting: this.isConnecting,
         socketId: this.getSocketId(),
         reconnectAttempts: this.reconnectAttempts,
-        apiUrl: this.getApiUrl(),
-        environment: getEnvVar('NODE_ENV') || getEnvVar('MODE') || 'development',
-        isProduction: getEnvVar('NODE_ENV') === 'production',
+        apiUrl: getApiUrl(),
+        environment: isProduction() ? 'production' : 'development',
+        isProduction: isProduction(),
         joinAttempts: Array.from(this.joinAttempts),
         hasHandlers: Object.keys(this.handlers).length > 0
       };
@@ -758,23 +636,6 @@ class SocketService {
         joinAttempts: [],
         hasHandlers: false
       };
-    }
-  }
-
-  // Additional helper methods...
-  private async checkIfMyTurn(activePlayerId: string) {
-    try {
-      const { useGameStore } = await import('../store/GameStore');
-      const store = useGameStore.getState();
-      if (store && typeof store.getMyPlayer === 'function') {
-        const myPlayer = store.getMyPlayer();
-        
-        if (myPlayer && activePlayerId === myPlayer.id) {
-          safeToast.success("It's your turn! Make your move.");
-        }
-      }
-    } catch (error) {
-      safeLog.error('Failed to check turn status:', error);
     }
   }
 
@@ -803,13 +664,10 @@ class SocketService {
 export const socketService = new SocketService();
 
 /**
- * Auto-connect when the service is imported (with delay for production)
+ * Auto-connect when the service is imported
  */
 if (typeof window !== 'undefined') {
-  // Only auto-connect in browser environment
-  const nodeEnv = getEnvVar('NODE_ENV');
-  const isProduction = nodeEnv === 'production';
-  const delay = isProduction ? 500 : 100; // Longer delay in production
+  const delay = isProduction() ? 500 : 100;
   
   setTimeout(() => {
     socketService.connect().catch(error => {
@@ -818,5 +676,4 @@ if (typeof window !== 'undefined') {
   }, delay);
 }
 
-// Ensure the socketService is the default export as well
 export default socketService;
