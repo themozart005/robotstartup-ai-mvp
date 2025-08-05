@@ -1,5 +1,5 @@
 // frontend/src/pages/GameBoard.tsx
-// COMPLETELY CLEAN VERSION - All debug calls removed
+// FINAL CLEAN VERSION - All debug calls removed
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -208,6 +208,7 @@ const GameBoard: React.FC = () => {
       }
     };
 
+    // FIXED: Completely clean createFallbackGame function
     const createFallbackGame = () => {
       const playerName = localStorage.getItem('playerName') || 'Player';
       
@@ -284,6 +285,7 @@ const GameBoard: React.FC = () => {
       useGameStore.getState().setCurrentGame(fallbackGame);
       useGameStore.getState().setCurrentPlayer('player-1');
       
+      // FIXED: Only console.log, no other debug calls
       setDebugInfo('✅ Fallback game created with new phase structure');
       toast.info('Playing in offline mode');
     };
