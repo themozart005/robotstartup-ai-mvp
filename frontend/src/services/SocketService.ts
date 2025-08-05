@@ -1,20 +1,33 @@
 // frontend/src/services/SocketService.ts
-// PRODUCTION-READY VERSION - Fixed for deployment issues
+// PRODUCTION-READY VERSION - Fixed syntax error for deployment
 
 import io from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 
-// Safe environment detection for production builds
+// Safe environment variable getter that works in production builds
 const getEnvVar = (key: string, fallback?: string): string | undefined => {
   try {
-    // Try Vite environment variables first
-    if (typeof import !== 'undefined' && import.meta?.env) {
-      return import.meta.env[key] || fallback;
+    // For Vite builds (checks for import.meta.env safely)
+    if (typeof window !== 'undefined' && (window as any).import?.meta?.env) {
+      return (window as any).import.meta.env[key] || fallback;
     }
+    
+    // Direct access for Vite (this is the main one that works)
+    try {
+      // @ts-ignore - Safe access to import.meta.env
+      if (import.meta?.env) {
+        // @ts-ignore
+        return import.meta.env[key] || import.meta.env[`VITE_${key}`] || fallback;
+      }
+    } catch (e) {
+      // Fallback if import.meta not available
+    }
+    
     // Fallback to process.env for other bundlers
     if (typeof process !== 'undefined' && process.env) {
-      return process.env[key] || fallback;
+      return process.env[key] || process.env[`REACT_APP_${key}`] || process.env[`VITE_${key}`] || fallback;
     }
+    
     return fallback;
   } catch (error) {
     return fallback;
@@ -456,7 +469,7 @@ class SocketService {
     });
 
     // Join game responses - FIXED event names to match backend
-    this.socket.on('join-success', (data) => {
+    this.socket.on('join-game-success', (data) => {
       safeLog.log('🎮 Join success:', data);
       
       if (data.gameState && data.playerId) {
@@ -472,7 +485,7 @@ class SocketService {
       }
     });
 
-    this.socket.on('join-error', (data) => {
+    this.socket.on('join-game-error', (data) => {
       safeLog.error('❌ Join failed:', data.message);
       this.updateGameStore('setLoading', false);
       safeToast.error(data.message || 'Failed to join game');
