@@ -1,5 +1,5 @@
 // frontend/src/services/SocketService.ts
-// PRODUCTION-READY VERSION - Fixed syntax error for deployment
+// PRODUCTION-READY VERSION - Fixed with isConnected method added
 
 import io from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
@@ -727,6 +727,14 @@ class SocketService {
   }
 
   /**
+   * FIXED: Added missing isConnected method
+   * Check if socket is currently connected
+   */
+  public isConnected(): boolean {
+    return this.socket?.connected || false;
+  }
+
+  /**
    * Get our socket ID
    */
   getSocketId(): string | null {
@@ -820,7 +828,7 @@ class SocketService {
    */
   verifyMethods() {
     const requiredMethods = ['initializeSocketHandlers', 'connect', 'joinGame', 'makeMove', 'isConnected'];
-    const available = {};
+    const available: any = {};
     
     requiredMethods.forEach(method => {
       available[method] = typeof this[method as keyof this] === 'function';
@@ -887,6 +895,12 @@ const socketService = {
   disconnect: () => socketServiceInstance.disconnect.call(socketServiceInstance),
   getConnectionStatus: () => socketServiceInstance.getConnectionStatus.call(socketServiceInstance),
   verifyMethods: () => socketServiceInstance.verifyMethods.call(socketServiceInstance),
+  on: (event: string, callback: Function) => 
+    socketServiceInstance.on.call(socketServiceInstance, event, callback),
+  off: (event: string, callback?: Function) => 
+    socketServiceInstance.off.call(socketServiceInstance, event, callback),
+  requestHelp: (concept: string, context?: any) =>
+    socketServiceInstance.requestHelp.call(socketServiceInstance, concept, context),
   
   // Debug method to check if all methods are working
   debugMethods: () => {
@@ -895,7 +909,10 @@ const socketService = {
       connect: typeof socketService.connect,
       joinGame: typeof socketService.joinGame,
       makeMove: typeof socketService.makeMove,
-      isConnected: typeof socketService.isConnected
+      isConnected: typeof socketService.isConnected,
+      on: typeof socketService.on,
+      off: typeof socketService.off,
+      requestHelp: typeof socketService.requestHelp
     };
     safeLog.log('🔍 SocketService method check:', methods);
     return methods;
