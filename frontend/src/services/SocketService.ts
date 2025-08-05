@@ -819,17 +819,51 @@ class SocketService {
 }
 
 // Create a single instance to use throughout the app
-export const socketService = new SocketService();
+const socketServiceInstance = new SocketService();
 
-// Debug: Verify methods are available after instantiation
+// Create a wrapper object with explicitly bound methods to prevent context loss in production
+const socketService = {
+  initializeSocketHandlers: (handlers: SocketHandlers) => {
+    safeLog.log('🔧 initializeSocketHandlers called with:', Object.keys(handlers));
+    return socketServiceInstance.initializeSocketHandlers.call(socketServiceInstance, handlers);
+  },
+  connect: () => socketServiceInstance.connect.call(socketServiceInstance),
+  joinGame: (gameId: string, playerName: string, playerType?: 'human' | 'ai') => 
+    socketServiceInstance.joinGame.call(socketServiceInstance, gameId, playerName, playerType),
+  makeMove: (gameId: string, move: any) => 
+    socketServiceInstance.makeMove.call(socketServiceInstance, gameId, move),
+  isConnected: () => socketServiceInstance.isConnected.call(socketServiceInstance),
+  getSocketId: () => socketServiceInstance.getSocketId.call(socketServiceInstance),
+  disconnect: () => socketServiceInstance.disconnect.call(socketServiceInstance),
+  getConnectionStatus: () => socketServiceInstance.getConnectionStatus.call(socketServiceInstance),
+  verifyMethods: () => socketServiceInstance.verifyMethods.call(socketServiceInstance),
+  
+  // Debug method to check if all methods are working
+  debugMethods: () => {
+    const methods = {
+      initializeSocketHandlers: typeof socketService.initializeSocketHandlers,
+      connect: typeof socketService.connect,
+      joinGame: typeof socketService.joinGame,
+      makeMove: typeof socketService.makeMove,
+      isConnected: typeof socketService.isConnected
+    };
+    safeLog.log('🔍 SocketService method check:', methods);
+    return methods;
+  }
+};
+
+// Make available globally for debugging
 if (typeof window !== 'undefined') {
-  safeLog.log('🔍 SocketService instance created with methods:', {
-    initializeSocketHandlers: typeof socketService.initializeSocketHandlers,
-    connect: typeof socketService.connect,
-    joinGame: typeof socketService.joinGame,
-    isConnected: typeof socketService.isConnected
-  });
+  (window as any).__SOCKET_SERVICE_DEBUG__ = socketService;
+  (window as any).__SOCKET_INSTANCE__ = socketServiceInstance;
+  
+  safeLog.log('🔍 SocketService wrapper created. Available methods:', Object.keys(socketService));
+  
+  // Immediate method verification
+  socketService.debugMethods();
 }
+
+export { socketService };
 
 // Ensure the socketService is the default export as well
 export default socketService;
@@ -846,7 +880,7 @@ if (typeof window !== 'undefined') {
   safeLog.log('🚀 Auto-connecting SocketService in', isProduction ? 'production' : 'development', 'with', delay + 'ms delay');
   
   setTimeout(() => {
-    socketService.connect().catch(error => {
+    socketServiceInstance.connect().catch(error => {
       safeLog.log('Initial connection failed - will retry when needed:', error.message);
     });
   }, delay);
