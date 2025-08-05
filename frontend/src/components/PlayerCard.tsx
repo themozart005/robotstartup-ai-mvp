@@ -1,5 +1,5 @@
 // frontend/src/components/PlayerCard.tsx
-// UPDATED VERSION - Shows equity, valuation, and funding status
+// FIXED VERSION - With error handling for missing gameHelpers functions
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -31,11 +31,34 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   isMe = false,
   showDetailed = false 
 }) => {
-  // Calculate financial metrics
-  const netWorth = gameHelpers.calculatePlayerNetWorth(player);
-  const companyValuation = gameHelpers.calculateCompanyValuation(player);
+  // Calculate financial metrics with error handling
+  const netWorth = gameHelpers?.calculatePlayerNetWorth ? 
+    gameHelpers.calculatePlayerNetWorth(player) : 
+    player.cash;
+    
+  const companyValuation = gameHelpers?.calculateCompanyValuation ? 
+    gameHelpers.calculateCompanyValuation(player) : 
+    player.cash * 2;
+    
   const equity = player.equity || 100;
-  const riskLevel = gameHelpers.getRiskLevel(player);
+  
+  // FIXED: Safe call to getRiskLevel with fallback
+  const getRiskLevel = (player: Player): 'low' | 'medium' | 'high' => {
+    if (gameHelpers?.getRiskLevel) {
+      return gameHelpers.getRiskLevel(player);
+    }
+    
+    // Fallback calculation if function doesn't exist
+    const debt = player.loans?.reduce((sum, loan) => sum + (loan.amountDue || loan.amount), 0) || 0;
+    const assets = player.cash + (player.robots?.length || 0) * 100000;
+    const debtRatio = assets > 0 ? debt / assets : 0;
+    
+    if (debtRatio > 0.7 || equity < 30) return 'high';
+    if (debtRatio > 0.3 || equity < 51) return 'medium';
+    return 'low';
+  };
+  
+  const riskLevel = getRiskLevel(player);
   
   // Determine if player has majority control
   const hasMajorityControl = equity >= 51;
@@ -46,6 +69,21 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   const totalEquityRaised = fundingRounds
     .filter(f => f.type === 'equity')
     .reduce((sum, f) => sum + f.amount, 0);
+
+  // Safe currency formatting
+  const formatCurrency = (amount: number): string => {
+    if (gameHelpers?.formatCurrency) {
+      return gameHelpers.formatCurrency(amount);
+    }
+    // Fallback formatting
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`;
+    } else {
+      return `$${amount.toLocaleString()}`;
+    }
+  };
 
   return (
     <motion.div
@@ -104,7 +142,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Cash</span>
           </div>
           <div className="text-sm font-semibold text-green-400">
-            {gameHelpers.formatCurrency(player.cash)}
+            {formatCurrency(player.cash)}
           </div>
         </div>
 
@@ -115,7 +153,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Net Worth</span>
           </div>
           <div className="text-sm font-semibold text-blue-400">
-            {gameHelpers.formatCurrency(netWorth)}
+            {formatCurrency(netWorth)}
           </div>
         </div>
       </div>
@@ -145,7 +183,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Valuation</span>
           </div>
           <div className="text-sm font-semibold text-orange-400">
-            {gameHelpers.formatCurrency(companyValuation)}
+            {formatCurrency(companyValuation)}
           </div>
         </div>
       </div>
@@ -159,7 +197,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Robots</span>
           </div>
           <div className="text-xs text-orange-300">
-            {player.robots.filter(r => !r.sold).length}
+            {player.robots?.filter(r => !r.sold).length || 0}
           </div>
         </div>
 
@@ -170,7 +208,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Tech</span>
           </div>
           <div className="text-xs text-purple-300">
-            {player.technologies.length}
+            {player.technologies?.length || 0}
           </div>
         </div>
 
@@ -181,10 +219,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <span className="text-xs text-gray-400">Rep</span>
           </div>
           <div className={`text-xs font-medium ${
-            player.reputation >= 70 ? 'text-green-400' : 
-            player.reputation >= 40 ? 'text-yellow-400' : 'text-red-400'
+            (player.reputation || 0) >= 70 ? 'text-green-400' : 
+            (player.reputation || 0) >= 40 ? 'text-yellow-400' : 'text-red-400'
           }`}>
-            {player.reputation}
+            {player.reputation || 0}
           </div>
         </div>
       </div>
@@ -202,7 +240,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-400">Raised:</span>
               <span className="text-xs text-green-300">
-                {gameHelpers.formatCurrency(totalEquityRaised)}
+                {formatCurrency(totalEquityRaised)}
               </span>
             </div>
           )}
@@ -231,20 +269,20 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         >
           <div className="flex justify-between text-xs">
             <span className="text-gray-400">Total Revenue:</span>
-            <span className="text-green-300">{gameHelpers.formatCurrency(player.stats.totalRevenue)}</span>
+            <span className="text-green-300">{formatCurrency(player.stats?.totalRevenue || 0)}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-gray-400">Robots Built:</span>
-            <span className="text-orange-300">{player.stats.totalProduction}</span>
+            <span className="text-orange-300">{player.stats?.totalProduction || 0}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-gray-400">Innovations:</span>
-            <span className="text-purple-300">{player.stats.successfulInnovations}</span>
+            <span className="text-purple-300">{player.stats?.successfulInnovations || 0}</span>
           </div>
-          {player.loans.length > 0 && (
+          {(player.loans?.length || 0) > 0 && (
             <div className="flex justify-between text-xs">
               <span className="text-gray-400">Active Loans:</span>
-              <span className="text-red-300">{player.loans.length}</span>
+              <span className="text-red-300">{player.loans?.length || 0}</span>
             </div>
           )}
         </motion.div>
@@ -264,46 +302,3 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 };
 
 export default PlayerCard;
-
-/**
- * EXPLANATION FOR BEGINNERS:
- * 
- * This PlayerCard component is like a trading card or player profile that shows
- * important information about each person playing the game. Here's what it displays:
- * 
- * 1. BASIC INFO:
- *    - Player name and whether they're human or AI
- *    - Business model specialization
- *    - Current reputation score
- * 
- * 2. FINANCIAL STATUS:
- *    - Current cash available
- *    - Net worth (total value minus debts)
- *    - Risk level based on debt-to-assets ratio
- * 
- * 3. BUSINESS ASSETS:
- *    - Number of robots currently owned
- *    - Active technologies and innovations
- *    - Outstanding loans and payments
- * 
- * 4. PERFORMANCE METRICS:
- *    - Total revenue earned
- *    - Total robots produced
- *    - Successful innovations completed
- * 
- * 5. VISUAL INDICATORS:
- *    - Different colors for different player states
- *    - Animation when it's someone's turn
- *    - Special highlighting for the current user
- *    - AI personality traits for computer players
- * 
- * KEY FEATURES:
- * - Compact design that fits multiple players on screen
- * - Expandable detailed view for more information
- * - Real-time updates when player status changes
- * - Color-coded risk levels and status indicators
- * - Smooth animations to show turn progression
- * 
- * This helps students track everyone's progress and understand how different
- * business strategies are performing in real-time.
- */

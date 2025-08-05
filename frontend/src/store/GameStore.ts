@@ -1,5 +1,5 @@
 // frontend/src/store/GameStore.ts
-// COMPLETE FIXED VERSION - With proper socket handlers and funding system support
+// FIXED VERSION - Added missing getRiskLevel function
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
@@ -103,6 +103,7 @@ export interface Loan {
   amountDue?: number;
   roundTaken?: number;
   repaid?: boolean;
+  remainingAmount?: number;
 }
 
 export interface PlayerStats {
@@ -136,6 +137,8 @@ export interface GameState {
   winner?: Player;
   isStarted?: boolean;
   isFinished?: boolean;
+  finalScores?: any[];
+  createdAt?: string;
 }
 
 export interface GameSettings {
@@ -715,16 +718,16 @@ useGameStore.subscribe(
   }
 );
 
-// UPDATED: Game helpers with valuation calculation and funding support
+// FIXED: Game helpers with added getRiskLevel function and error handling
 export const gameHelpers = {
   calculatePlayerAssets: (player: Player): number => {
-    const robotValue = player.robots.filter(r => !r.sold).length * 100000;
-    const techValue = player.technologies.reduce((sum, tech) => sum + 50000, 0);
-    return player.cash + robotValue + techValue;
+    const robotValue = player.robots?.filter(r => !r.sold).length * 100000 || 0;
+    const techValue = player.technologies?.reduce((sum, tech) => sum + 50000, 0) || 0;
+    return (player.cash || 0) + robotValue + techValue;
   },
 
   calculatePlayerDebt: (player: Player): number => {
-    return player.loans.reduce((sum, loan) => sum + (loan.amountDue || loan.amount), 0);
+    return player.loans?.reduce((sum, loan) => sum + (loan.remainingAmount || loan.amountDue || loan.amount), 0) || 0;
   },
 
   calculatePlayerNetWorth: (player: Player): number => {
@@ -734,8 +737,8 @@ export const gameHelpers = {
   // NEW: Calculate company valuation
   calculateCompanyValuation: (player: Player): number => {
     const cash = player.cash || 0;
-    const robotInventoryValue = player.robots.filter(r => !r.sold).length * 100000;
-    const technologyValue = player.technologies.length * 50000;
+    const robotInventoryValue = (player.robots?.filter(r => !r.sold).length || 0) * 100000;
+    const technologyValue = (player.technologies?.length || 0) * 50000;
     const totalAssets = cash + robotInventoryValue + technologyValue;
     const industryMultiple = 2.5; // Simplified for beginners
     return totalAssets * industryMultiple;
@@ -762,24 +765,50 @@ export const gameHelpers = {
     return 'text-red-600';
   },
 
+  // FIXED: Added missing getRiskLevel function
+  getRiskLevel: (player: Player): 'low' | 'medium' | 'high' => {
+    try {
+      const netWorth = gameHelpers.calculatePlayerNetWorth(player);
+      const debt = gameHelpers.calculatePlayerDebt(player);
+      const equity = player.equity || 100;
+      
+      // Calculate risk based on debt ratio and equity position
+      const debtRatio = netWorth > 0 ? debt / netWorth : 1;
+      
+      // High risk: High debt or lost majority control
+      if (debtRatio > 0.7 || equity < 30) return 'high';
+      
+      // Medium risk: Moderate debt or minority control
+      if (debtRatio > 0.3 || equity < 51) return 'medium';
+      
+      // Low risk: Low debt and majority control
+      return 'low';
+    } catch (error) {
+      console.error('Error calculating risk level:', error);
+      return 'medium'; // Default fallback
+    }
+  },
+
   getProductionCapacity: (player: Player, difficulty: string): number => {
     let baseCapacity = difficulty === 'beginner' ? 3 : 2;
     
-    player.technologies.forEach(tech => {
-      if (tech.name.includes('Factory') || tech.name.includes('Production')) {
-        baseCapacity += 2;
-      }
-    });
+    if (player.technologies) {
+      player.technologies.forEach(tech => {
+        if (tech.name?.includes('Factory') || tech.name?.includes('Production')) {
+          baseCapacity += 2;
+        }
+      });
+    }
     
     return baseCapacity;
   },
 
   getTechnologyBonus: (player: Player): number => {
-    return player.technologies.reduce((bonus, tech) => bonus + tech.benefit, 0);
+    return player.technologies?.reduce((bonus, tech) => bonus + (tech.benefit || 0), 0) || 0;
   },
 
   canAfford: (player: Player, cost: number): boolean => {
-    return player.cash >= cost;
+    return (player.cash || 0) >= cost;
   },
 
   formatCurrency: (amount: number): string => {
@@ -818,7 +847,7 @@ export const gameHelpers = {
     // Round 1: Limited capacity to prove concept
     if (currentRound === 1) {
       let baseCapacity = 3;
-      const productionTechs = player.technologies.filter(t => 
+      const productionTechs = (player.technologies || []).filter(t => 
         t.name && (t.name.includes('Factory') || t.name.includes('Production'))
       );
       const techBonus = productionTechs.reduce((sum, tech) => sum + (tech.benefit || 0), 0);
@@ -845,7 +874,7 @@ export const gameHelpers = {
     const revenueBonus = Math.floor(totalRevenue / 500000);
     
     // Technology scaling
-    const productionTechs = player.technologies.filter(t => 
+    const productionTechs = (player.technologies || []).filter(t => 
       t.name && (t.name.includes('Factory') || t.name.includes('Production') || t.name.includes('Motors') || t.name.includes('Automation'))
     );
     const techBonus = productionTechs.length * 2; // Each production tech adds 2 capacity

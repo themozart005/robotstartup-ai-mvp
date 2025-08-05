@@ -1,5 +1,5 @@
 // frontend/src/pages/GameBoard.tsx
-// COMPLETE FIXED VERSION - With game ending and production capacity fixes
+// FIXED VERSION - Removed P.info calls and added error handling
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -195,7 +195,7 @@ const GameBoard: React.FC = () => {
 
       } catch (error) {
         console.error('❌ Initialization error:', error);
-        setDebugInfo(`❌ Error: ${error.message}`);
+        setDebugInfo(`❌ Error: ${(error as Error)?.message || 'Unknown error'}`);
         
         // Create fallback game for development
         if (process.env.NODE_ENV === 'development') {
@@ -317,7 +317,7 @@ const GameBoard: React.FC = () => {
     });
   }, [updateKey, currentGame, myPlayer, isMyTurn, isConnected, isInitializing, debugInfo]);
 
-  // Debug move data function
+  // FIXED: Debug move data function (removed P.info calls)
   const debugMoveData = (moveData: any) => {
     console.log('🔍 DEBUG: Move data structure:', {
       action: moveData.action,
@@ -327,6 +327,7 @@ const GameBoard: React.FC = () => {
       dataType: typeof moveData.data,
       technologyType: typeof moveData.technology
     });
+    // FIXED: Removed P.info(moveData) call that was causing the error
   };
 
   // Handle leaving the game
@@ -356,7 +357,9 @@ const GameBoard: React.FC = () => {
         reputation: myPlayer.reputation || 50,
         marketingEffects: myPlayer.marketingEffects || [],
         growthEffects: myPlayer.growthEffects || [],
-        companyValuation: gameHelpers.calculateCompanyValuation(myPlayer)
+        companyValuation: gameHelpers?.calculateCompanyValuation ? 
+          gameHelpers.calculateCompanyValuation(myPlayer) : 
+          myPlayer.cash * 2
       };
       
       if (socketService.isConnected()) {
@@ -453,6 +456,21 @@ const GameBoard: React.FC = () => {
     }
   };
 
+  // Safe currency formatting function
+  const formatCurrency = (amount: number): string => {
+    if (gameHelpers?.formatCurrency) {
+      return gameHelpers.formatCurrency(amount);
+    }
+    // Fallback formatting
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`;
+    } else {
+      return `$${amount.toLocaleString()}`;
+    }
+  };
+
   // NEW: Game End Winner Screen Component
   const WinnerScreen: React.FC = () => {
     if (!currentGame || currentGame.status !== 'finished' || !currentGame.finalScores) {
@@ -544,13 +562,13 @@ const GameBoard: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-green-400">
-                          {gameHelpers.formatCurrency(score.score)}
+                          {formatCurrency(score.score)}
                         </div>
                         <div className="text-sm text-gray-400">
-                          Net Worth: {gameHelpers.formatCurrency(score.netWorth)}
+                          Net Worth: {formatCurrency(score.netWorth)}
                         </div>
                         <div className="text-xs text-purple-400">
-                          Valuation: {gameHelpers.formatCurrency(score.companyValuation)}
+                          Valuation: {formatCurrency(score.companyValuation)}
                         </div>
                       </div>
                     </div>
@@ -841,13 +859,16 @@ const GameBoard: React.FC = () => {
               <div className="flex justify-between text-gray-300">
                 <span>Net Worth:</span>
                 <span className="text-green-400 font-semibold">
-                  {gameHelpers.formatCurrency(gameHelpers.calculatePlayerNetWorth(myPlayer))}
+                  {gameHelpers?.calculatePlayerNetWorth ? 
+                    formatCurrency(gameHelpers.calculatePlayerNetWorth(myPlayer)) :
+                    formatCurrency(myPlayer.cash)
+                  }
                 </span>
               </div>
               <div className="flex justify-between text-gray-300">
                 <span>Cash:</span>
                 <span className="text-blue-400">
-                  {gameHelpers.formatCurrency(myPlayer.cash)}
+                  {formatCurrency(myPlayer.cash)}
                 </span>
               </div>
               <div className="flex justify-between text-gray-300">
@@ -861,7 +882,10 @@ const GameBoard: React.FC = () => {
               <div className="flex justify-between text-gray-300">
                 <span>Valuation:</span>
                 <span className="text-purple-400">
-                  {gameHelpers.formatCurrency(gameHelpers.calculateCompanyValuation(myPlayer))}
+                  {gameHelpers?.calculateCompanyValuation ? 
+                    formatCurrency(gameHelpers.calculateCompanyValuation(myPlayer)) :
+                    formatCurrency(myPlayer.cash * 2)
+                  }
                 </span>
               </div>
               <div className="flex justify-between text-gray-300">
@@ -928,8 +952,8 @@ const GameBoard: React.FC = () => {
             <RobotBuilder
               robots={myPlayer.robots}
               cash={myPlayer.cash}
-              // FIXED: Pass currentRound for scalable production capacity
-              productionCapacity={gameHelpers.calculateProductionCapacity ? 
+              // FIXED: Pass currentRound for scalable production capacity with error handling
+              productionCapacity={gameHelpers?.calculateProductionCapacity ? 
                 gameHelpers.calculateProductionCapacity(myPlayer, currentGame.currentRound) : 
                 3
               }
@@ -981,7 +1005,9 @@ const GameBoard: React.FC = () => {
               round: currentGame.currentRound,
               equity: myPlayer.equity || 100,
               fundingHistory: myPlayer.fundingRounds || [],
-              companyValuation: gameHelpers.calculateCompanyValuation(myPlayer)
+              companyValuation: gameHelpers?.calculateCompanyValuation ? 
+                gameHelpers.calculateCompanyValuation(myPlayer) : 
+                myPlayer.cash * 2
             }}
           />
         )}
