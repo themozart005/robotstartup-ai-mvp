@@ -4,7 +4,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import logger from '../utils/logger';
 import { 
   DollarSign, 
   Cog, 
