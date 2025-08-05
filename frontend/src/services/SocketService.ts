@@ -169,40 +169,40 @@ class SocketService {
    */
   private getApiUrl(): string {
     try {
-      // Check if we're in production
-      const nodeEnv = getEnvVar('NODE_ENV');
-      const mode = getEnvVar('MODE');
-      const isProduction = nodeEnv === 'production' || mode === 'production' || 
-                          getEnvVar('VITE_NODE_ENV') === 'production' ||
-                          getEnvVar('REACT_APP_NODE_ENV') === 'production';
-
-      if (isProduction) {
-        // Production environment (deployed)
-        const backendUrl = getEnvVar('VITE_BACKEND_URL') || 
-                          getEnvVar('REACT_APP_BACKEND_URL') || 
-                          getEnvVar('VITE_API_URL') ||
-                          getEnvVar('REACT_APP_API_URL');
-        
-        if (!backendUrl) {
-          safeLog.warn('⚠️ Backend URL not set in production, using fallback');
-          // Replace with your actual Railway URL
-          return 'https://levelup-robot-startup-deployment-production.up.railway.app';
-        }
-        
-        safeLog.log('🌐 Using production API URL:', backendUrl);
-        return backendUrl;
+      // Simple hostname detection for production
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      
+      // If we're on Vercel (production), use Railway backend
+      if (hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
+        const prodUrl = 'https://levelup-robot-startup-deployment-production.up.railway.app';
+        safeLog.log('🌐 Production detected, using Railway backend:', prodUrl);
+        return prodUrl;
       }
       
-      // Development environment (local)
-      const devUrl = getEnvVar('VITE_BACKEND_URL') || 
-                    getEnvVar('REACT_APP_BACKEND_URL') || 
-                    'http://localhost:5000';
+      // If we're on localhost, use local backend
+      if (hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname === '') {
+        const devUrl = 'http://localhost:5000';
+        safeLog.log('🛠️ Development detected, using local backend:', devUrl);
+        return devUrl;
+      }
       
-      safeLog.log('🛠️ Using development API URL:', devUrl);
-      return devUrl;
+      // Fallback: try environment variables
+      const envUrl = getEnvVar('VITE_BACKEND_URL') || 
+                    getEnvVar('REACT_APP_BACKEND_URL');
+      
+      if (envUrl) {
+        safeLog.log('🔧 Using environment URL:', envUrl);
+        return envUrl;
+      }
+      
+      // Final fallback - assume production
+      const finalUrl = 'https://levelup-robot-startup-deployment-production.up.railway.app';
+      safeLog.warn('⚠️ Could not detect environment, defaulting to production:', finalUrl);
+      return finalUrl;
+      
     } catch (error) {
       safeLog.error('❌ Error getting API URL:', error);
-      return 'http://localhost:5000'; // Safe fallback
+      return 'https://levelup-robot-startup-deployment-production.up.railway.app';
     }
   }
 
@@ -211,11 +211,10 @@ class SocketService {
    */
   private getSocketConfig() {
     try {
-      const nodeEnv = getEnvVar('NODE_ENV');
-      const mode = getEnvVar('MODE');
-      const isProduction = nodeEnv === 'production' || mode === 'production';
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isProduction = hostname.includes('vercel.app') || hostname.includes('netlify.app');
       
-      return {
+      const config = {
         transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
         timeout: isProduction ? 20000 : 10000, // Longer timeout for production
         forceNew: false, // Prevent unnecessary reconnections
@@ -230,6 +229,9 @@ class SocketService {
           autoConnect: true
         })
       };
+      
+      safeLog.log('⚙️ Socket config for', isProduction ? 'production' : 'development', ':', config);
+      return config;
     } catch (error) {
       safeLog.error('❌ Error getting socket config:', error);
       return {
@@ -837,9 +839,11 @@ export default socketService;
  */
 if (typeof window !== 'undefined') {
   // Only auto-connect in browser environment
-  const nodeEnv = getEnvVar('NODE_ENV');
-  const isProduction = nodeEnv === 'production';
+  const hostname = window.location.hostname;
+  const isProduction = hostname.includes('vercel.app') || hostname.includes('netlify.app');
   const delay = isProduction ? 500 : 100; // Longer delay in production
+  
+  safeLog.log('🚀 Auto-connecting SocketService in', isProduction ? 'production' : 'development', 'with', delay + 'ms delay');
   
   setTimeout(() => {
     socketService.connect().catch(error => {
