@@ -96,21 +96,27 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
 
   // Handle growth selection from modal
   const handleGrowthSelection = (option: any) => {
-    if (option.amount === 0) {
+    console.log('🎯 Growth selection:', option);
+  
+  // Handle skip option - check both conditions
+	if (option.investmentType === 'skip_growth' || option.amount === 0) {
+	  console.log('📊 Skipping growth investment');
       onMakeMove({
-        action: 'skip_growth',
-        data: {}
-      });
-    } else {
+         action: 'skip_growth',  // This must match backend exactly
+         data: { reason: 'player_choice' }
+	  });
+	} else {
+    // Send the growth investment
+	  console.log('💰 Making growth investment:', option);
       onMakeMove({
-        action: 'invest_marketing',
+		action: 'invest_marketing',  // This must match backend exactly
         data: {
           investmentType: option.investmentType,
-          amount: option.amount
+          amount: option.amount || option.cost  // Handle both field names
         }
-      });
-    }
-    setShowGrowthModal(false);
+	  });
+	}
+	setShowGrowthModal(false);
   };
 
   // FIXED: Bootstrap/Startup Phase with proper click handling
