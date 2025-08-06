@@ -463,21 +463,32 @@ export const useGameStore = create<GameStore>()(
       if (game) {
         const currentPlayerId = get().currentPlayerId;
 		const myPlayer = currentPlayerId ? game.players.find(p => p.id === currentPlayerId) : null;
-		const currentPlayerIndex = game.currentPlayerIndex ?? game.currentPlayerTurn;
+		const currentPlayerIndex = game.currentPlayerIndex ?? game.currentPlayerTurn ?? 0;
 		// Add detailed logging
 		console.log('🔍 Turn calculation:', {
 		  myPlayerId: currentPlayerId,
 		  myPlayer: myPlayer?.name,
 		  currentPlayerIndex,
           currentPlayerTurn: game.currentPlayerTurn,
-          activePlayer: game.players[currentPlayerIndex],
+          activePlayerId: game.players[currentPlayerIndex]?.id,
+	      activePlayerName: game.players[currentPlayerIndex]?.name,
           players: game.players.map(p => ({ id: p.id, name: p.name, type: p.type }))
 		});
     
-		const isMyTurn = myPlayer && game.players[currentPlayerIndex]?.id === myPlayer.id;
-		set({ isMyTurn: Boolean(isMyTurn) });
-    
-		console.log('🎯 Is my turn?', isMyTurn);
+		if (myPlayer && game.players[currentPlayerIndex]) {
+		  const isMyTurn = game.players[currentPlayerIndex].id === myPlayer.id;
+		  set({ isMyTurn: Boolean(isMyTurn) });
+          console.log('🎯 Is my turn?', isMyTurn);
+		} else {
+      // Bootstrap phase exception - Round 1, bootstrap phase, everyone can move
+		  if (game.currentRound === 1 && game.currentPhase === 'bootstrap') {
+		    set({ isMyTurn: true }); // Everyone can collect bootstrap funding
+			console.log('🎯 Bootstrap phase - allowing all players to collect funding');
+		  } else {
+		    set({ isMyTurn: false });
+		    console.log('🎯 Is my turn? false (player not found)');
+		  }
+		}
       }
     },
 
@@ -616,9 +627,54 @@ export const useGameStore = create<GameStore>()(
     },
 
     canMakeMove: () => {
-      const { isMyTurn, isProcessingMove, currentGame } = get();
-      return isMyTurn && !isProcessingMove && currentGame?.status === 'playing';
-    },
+	  const { isMyTurn, isProcessingMove, currentGame } = get();
+  
+  // Special case: Bootstrap phase in Round 1 - everyone can collect
+	  if (currentGame?.currentPhase === 'bootstrap' && currentGame?.currentRound === 1) {
+		return !isProcessingMove && currentGame?.status === 'playing';
+	  }
+  
+  // Normal turn-based phases
+	  return isMyTurn && !isProcessingMove && currentGame?.status === 'playing';
+	},
+
+// FIXED: Update makeMove to handle bootstrap phase specially
+	makeMove: async (move) => {
+	  const { currentGame, isMyTurn, isProcessingMove } = get();
+	  
+	  if (!currentGame || isProcessingMove) {
+		toast.error('Cannot make move right now');
+		return;
+	  }
+
+  // Special handling for bootstrap phase
+	  const isBootstrapPhase = currentGame.currentPhase === 'bootstrap' && currentGame.currentRound === 1;
+	  
+	  // Check turn for non-bootstrap phases
+	  if (!isBootstrapPhase && !isMyTurn) {
+		toast.error('Not your turn!');
+		return;
+	  }
+
+	  try {
+		set({ isProcessingMove: true, pendingMove: move });
+		
+		const { socketService } = await import('../services/SocketService');
+		socketService.makeMove(currentGame.id, move);
+		
+		console.log('🎯 GameStore: Move sent via socket:', move);
+		
+		// For bootstrap, show different message
+		if (isBootstrapPhase) {
+		  toast.loading('Collecting bootstrap funding...', { id: 'bootstrap' });
+		}
+    
+	  } catch (error) {
+		console.error('❌ GameStore: Error making move:', error);
+		toast.error('Failed to make move');
+		set({ pendingMove: null, isProcessingMove: false });
+	  }
+	},
 
     // UPDATED: getCurrentPhaseInfo with new phase structure and startup reality descriptions
     getCurrentPhaseInfo: () => {

@@ -599,10 +599,19 @@ class GameManager extends EventEmitter {
       return { success: false, error: 'Player not found' };
     }
 
-    const currentPlayer = game.players[game.currentPlayerTurn];
-    if (currentPlayer.id !== playerId) {
-      return { success: false, error: 'Not your turn' };
-    }
+    // FIXED: Special handling for bootstrap phase
+	if (move.action === 'collect_income' && game.currentPhase === 'bootstrap' && game.currentRound === 1) {
+		// Bootstrap phase - no turn restriction, but check if already collected
+	  if (player.cash > 500000) {
+        return { success: false, error: 'Bootstrap funding already collected' };
+      }
+	} else {
+    // Normal turn checking for other phases
+	  const currentPlayer = game.players[game.currentPlayerTurn];
+      if (currentPlayer.id !== playerId) {
+        return { success: false, error: 'Not your turn' };
+      }
+	}
 
     game.lastActivity = new Date();
 
