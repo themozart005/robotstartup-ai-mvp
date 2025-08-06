@@ -573,29 +573,7 @@ export const useGameStore = create<GameStore>()(
       toast.success('Left the game');
     },
 
-    makeMove: async (move) => {
-      const { currentGame, isMyTurn, isProcessingMove } = get();
-      
-      if (!currentGame || !isMyTurn || isProcessingMove) {
-        toast.error('Cannot make move right now');
-        return;
-      }
-
-      try {
-        set({ isProcessingMove: true, pendingMove: move });
-        
-        const { socketService } = await import('../services/SocketService');
-        socketService.makeMove(currentGame.id, move);
-        
-        console.log('🎯 GameStore: Move sent via socket:', move);
-        
-      } catch (error) {
-        console.error('❌ GameStore: Error making move:', error);
-        toast.error('Failed to make move');
-        set({ pendingMove: null, isProcessingMove: false });
-      }
-    },
-
+    
     requestAIHelp: async (concept, context) => {
       try {
         const { currentGame } = get();
