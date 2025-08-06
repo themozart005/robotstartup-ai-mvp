@@ -198,11 +198,22 @@ class GameManager extends EventEmitter {
 
     game.status = 'playing';
     game.lastActivity = new Date();
-
+	
+	// FIXED: Ensure human players go first
+	const humanPlayerIndex = game.players.findIndex(p => p.type === 'human');
+	if (humanPlayerIndex > 0) {
+    // Move human player to front if not already there
+	  const humanPlayer = game.players.splice(humanPlayerIndex, 1)[0];
+	  game.players.unshift(humanPlayer);
+	}
+	
+	// Human player is now at index 0
+	game.currentPlayerTurn = 0;
+	
     logger.info(`🚀 Game started: ${gameId}`, { 
       players: game.players.length,
-      humanPlayers: game.players.filter(p => p.type === 'human').length,
-      aiPlayers: game.players.filter(p => p.type === 'ai').length
+      firstPlayer: game.players[0].name,
+	  firstPlayerType: game.players[0].type
     });
 
     this.processTurn(gameId);

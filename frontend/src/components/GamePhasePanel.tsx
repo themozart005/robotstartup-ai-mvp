@@ -114,105 +114,103 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
 
   // FIXED: Bootstrap/Startup Phase - handles both Round 1 bootstrap and legacy startup
   const renderBootstrapPhase = () => {
-    // For Round 2+, show funding modal instead
-    if (currentRound > 1) {
-      setShowFundingModal(true);
+  // For Round 2+, show funding modal instead
+	if (currentRound > 1) {
+	  setShowFundingModal(true);
       return (
-        <div className="space-y-4">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-lg">
-            <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
-              <TrendingUp size={20} />
-              Funding Round {currentRound}
-            </h3>
-            <p className="text-purple-100 mb-4">
-              Choose your funding strategy to scale your proven business.
-            </p>
-            
-            <button
-              onClick={() => setShowFundingModal(true)}
-              disabled={!canMakeMove}
-              className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-                canMakeMove
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl'
-                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              Open Funding Options
-            </button>
-          </div>
-        </div>
+         <div className="space-y-4">
+           <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-lg">
+			 <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+				<TrendingUp size={20} />
+				Funding Round {currentRound}
+			 </h3>
+			 <p className="text-purple-100 mb-4">
+			   Choose your funding strategy to scale your proven business.
+			 </p>
+          
+             <button
+			   onClick={() => setShowFundingModal(true)}
+			   disabled={!canMakeMove}
+               className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
+                 canMakeMove
+				   ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl'
+				   : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+               }`}
+			  >
+               Open Funding Options
+			  </button>
+		   </div>
+		 </div>
       );
-    }
+	}
 
-    // Round 1 Bootstrap
+    // Round 1 Bootstrap FIXED: Always show button in Round 1 bootstrap
     return (
-      <div className="space-y-4">
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Rocket className="text-white" size={32} />
-              <div>
-                <h3 className="text-xl font-bold text-white">Bootstrap Your Startup!</h3>
-                <p className="text-green-100 text-sm">Collect your initial funding to begin your journey</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-white">$50,000</div>
-              <div className="text-green-100 text-sm">Friends & Family Round</div>
-            </div>
-          </div>
+		<div className="space-y-4">
+		  <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 rounded-lg">
+			<div className="flex items-center justify-between mb-4">
+			  <div className="flex items-center gap-3">
+				<Rocket className="text-white" size={32} />
+				<div>
+				  <h3 className="text-xl font-bold text-white">Bootstrap Your Startup!</h3>
+				  <p className="text-green-100 text-sm">Collect your initial funding to begin your journey</p>
+				</div>
+			  </div>
+			  <div className="text-right">
+				<div className="text-2xl font-bold text-white">$50,000</div>
+				<div className="text-green-100 text-sm">Friends & Family Round</div>
+			  </div>
+			</div>
 
-          <div className="bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
-            <p className="text-green-50 text-sm mb-3">
-              This is your pre-seed funding from friends and family who believe in your vision. 
-              Use it wisely to develop your MVP and prove your concept!
-            </p>
-            <div className="space-y-2 text-green-100 text-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={16} />
-                <span>No equity dilution</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={16} />
-                <span>No debt obligations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={16} />
-                <span>Complete control retained</span>
-              </div>
-            </div>
-          </div>
+			<div className="bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
+			  <p className="text-green-50 text-sm mb-3">
+				This is your pre-seed funding from friends and family who believe in your vision. 
+				Use it wisely to develop your MVP and prove your concept!
+			  </p>
+			  <div className="space-y-2 text-green-100 text-sm">
+				<div className="flex items-center gap-2">
+				  <CheckCircle size={16} />
+				  <span>No equity dilution</span>
+				</div>
+				<div className="flex items-center gap-2">
+				  <CheckCircle size={16} />
+				  <span>No debt obligations</span>
+				</div>
+				<div className="flex items-center gap-2">
+				  <CheckCircle size={16} />
+				  <span>Complete control retained</span>
+				</div>
+			  </div>
+			</div>
 
-          {isMyTurn ? (
-            <button
-              onClick={() => onMakeMove({ action: 'collect_income', data: {} })}
-              disabled={!canMakeMove}
-              className={`w-full py-3 px-6 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
-                canMakeMove
-                  ? 'bg-white text-green-600 hover:bg-green-50 shadow-lg hover:shadow-xl'
-                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              <DollarSign size={20} />
-              Collect $50,000 Bootstrap Funding
-            </button>
-          ) : (
-            <div className="text-center py-4 bg-yellow-500/20 rounded-lg">
-              <p className="text-yellow-100">Waiting for other players...</p>
-            </div>
-          )}
-        </div>
+			{/* FIXED: For Round 1 bootstrap, always show the button */}
+			<button
+			  onClick={() => {
+				console.log('🎯 Bootstrap button clicked!');
+				onMakeMove({ action: 'collect_income', data: {} });
+			  }}
+			  className="w-full py-3 px-6 rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-white text-green-600 hover:bg-green-50 shadow-lg hover:shadow-xl cursor-pointer"
+			>
+			  <DollarSign size={20} />
+			  Collect $50,000 Bootstrap Funding
+			</button>
 
-        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
-          <h4 className="text-white font-medium mb-2">💡 Bootstrap Strategy</h4>
-          <ul className="text-blue-200 text-sm space-y-1">
-            <li>• This is your initial capital to prove your concept</li>
-            <li>• Focus on building an MVP and finding early customers</li>
-            <li>• Manage cash carefully - you won't get more funding until Round 2</li>
-          </ul>
-        </div>
-      </div>
-    );
+			{/* Debug info */}
+			<div className="mt-2 text-xs text-green-200 bg-green-800/30 p-2 rounded">
+			  Debug: Round {currentRound}, Turn: {isMyTurn ? 'Yes' : 'No'}, Can Move: {canMakeMove ? 'Yes' : 'No'}
+			</div>
+		  </div>
+
+		  <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+			<h4 className="text-white font-medium mb-2">💡 Bootstrap Strategy</h4>
+			<ul className="text-blue-200 text-sm space-y-1">
+			  <li>• This is your initial capital to prove your concept</li>
+			  <li>• Focus on building an MVP and finding early customers</li>
+			  <li>• Manage cash carefully - you won't get more funding until Round 2</li>
+			</ul>
+		  </div>
+		</div>
+	);
   };
 
   // Keep your other phase rendering methods as they are...

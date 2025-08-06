@@ -292,18 +292,26 @@ export const useGameStore = create<GameStore>()(
         const joinSuccessHandler = (data: any) => {
           console.log('🎮 GameStore: Join success:', data);
           
-          if (data.gameState) {
+          if (data.gameState && data.playerId) {
             set({ 
-              currentGame: data.gameState,
               currentPlayerId: data.playerId,
-              isLoading: false 
+			  isLoading: false  
             });
+			
+			// Then set the game (which will now correctly calculate isMyTurn)
+			set({ currentGame: data.gameState });
             
             const myPlayer = data.gameState.players.find((p: Player) => p.id === data.playerId);
             if (myPlayer) {
               set({ currentPlayer: myPlayer });
             }
             
+			// Recalculate isMyTurn after everything is set
+			const currentPlayerIndex = data.gameState.currentPlayerIndex ?? data.gameState.currentPlayerTurn;
+			const isMyTurn = data.gameState.players[currentPlayerIndex]?.id === data.playerId;
+			set({ isMyTurn: Boolean(isMyTurn) });
+			
+			console.log('✅ Game joined - Is it my turn?', isMyTurn);
             toast.success('Successfully joined game!');
           }
         };
@@ -453,10 +461,23 @@ export const useGameStore = create<GameStore>()(
       set({ currentGame: game });
       
       if (game) {
-        const myPlayer = get().getMyPlayer();
-        const currentPlayerIndex = game.currentPlayerIndex ?? game.currentPlayerTurn;
-        const isMyTurn = myPlayer && game.players[currentPlayerIndex]?.id === myPlayer.id;
-        set({ isMyTurn: Boolean(isMyTurn) });
+        const currentPlayerId = get().currentPlayerId;
+		const myPlayer = currentPlayerId ? game.players.find(p => p.id === currentPlayerId) : null;
+		const currentPlayerIndex = game.currentPlayerIndex ?? game.currentPlayerTurn;
+		// Add detailed logging
+		console.log('🔍 Turn calculation:', {
+		  myPlayerId: currentPlayerId,
+		  myPlayer: myPlayer?.name,
+		  currentPlayerIndex,
+          currentPlayerTurn: game.currentPlayerTurn,
+          activePlayer: game.players[currentPlayerIndex],
+          players: game.players.map(p => ({ id: p.id, name: p.name, type: p.type }))
+		});
+    
+		const isMyTurn = myPlayer && game.players[currentPlayerIndex]?.id === myPlayer.id;
+		set({ isMyTurn: Boolean(isMyTurn) });
+    
+		console.log('🎯 Is my turn?', isMyTurn);
       }
     },
 
