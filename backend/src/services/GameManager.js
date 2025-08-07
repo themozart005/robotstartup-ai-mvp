@@ -589,7 +589,17 @@ class GameManager extends EventEmitter {
    * Process a player move - UPDATED for new phases
    */
   async processPlayerMove(gameId, playerId, move) {
-    const game = this.games.get(gameId);
+	console.log('🔍 GameManager received move:', JSON.stringify(move, null, 2));
+	console.log('🔍 Move action type:', typeof move.action);
+	console.log('🔍 Move action value:', `"${move.action}"`);
+	console.log('🔍 Move has data?:', !!move.data);  
+    logger.info('🔍 GameManager received move:', {
+	  action: move?.action,
+      actionLength: move?.action?.length,
+      data: move?.data
+    });
+	
+	const game = this.games.get(gameId);
     if (!game) {
       return { success: false, error: 'Game not found' };
     }
@@ -598,7 +608,12 @@ class GameManager extends EventEmitter {
     if (!player) {
       return { success: false, error: 'Player not found' };
     }
-
+	
+	// LOG THE CURRENT PHASE
+	console.log('🎮 Current game phase:', game.currentPhase);
+	console.log('🎮 Current round:', game.currentRound);
+	logger.info('🎮 Game state:', { phase: game.currentPhase, round: game.currentRound });
+	
     // FIXED: Special handling for bootstrap phase
 	if (move.action === 'collect_income' && game.currentPhase === 'bootstrap' && game.currentRound === 1) {
 		// Bootstrap phase - no turn restriction, but check if already collected
@@ -617,7 +632,8 @@ class GameManager extends EventEmitter {
 
     try {
       let result;
-      
+      // LOG RIGHT BEFORE SWITCH
+	  console.log(`🎯 About to switch on action: "${move.action}"`);
       switch (move.action) {
         case 'collect_income':
           // UPDATED: Only valid in bootstrap phase (Round 1)

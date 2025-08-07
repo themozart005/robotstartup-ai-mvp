@@ -96,26 +96,35 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
 
   // Handle growth selection from modal
   const handleGrowthSelection = (option: any) => {
-    console.log('🎯 Growth selection:', option);
+    console.log('🎯 Growth selection received from modal:', option);
+	console.log('🔍 Option structure:', {
+	  investmentType: option.investmentType,
+      amount: option.amount,
+      hasInvestmentType: 'investmentType' in option,
+      hasAmount: 'amount' in option
+    });
   
   // Handle skip option - check both conditions
 	if (option.investmentType === 'skip_growth' || option.amount === 0) {
-	  console.log('📊 Skipping growth investment');
-      onMakeMove({
-         action: 'skip_growth',  // This must match backend exactly
-         data: { reason: 'player_choice' }
-	  });
+      const skipMove = {
+        action: 'skip_growth',
+        data: { reason: 'player_choice' }
+	  };
+	  console.log('📤 Sending skip move:', JSON.stringify(skipMove));
+	  onMakeMove(skipMove);
 	} else {
     // Send the growth investment
-	  console.log('💰 Making growth investment:', option);
-      onMakeMove({
-		action: 'invest_marketing',  // This must match backend exactly
+	  const investMove = {
+        action: 'invest_marketing',
         data: {
           investmentType: option.investmentType,
-          amount: option.amount || option.cost  // Handle both field names
+          amount: option.amount || option.cost
         }
-	  });
-	}
+      };
+      console.log('📤 Sending invest move:', JSON.stringify(investMove));
+      console.log('📤 Action string:', `"${investMove.action}"`, 'Length:', investMove.action.length);
+      onMakeMove(investMove);
+	}	
 	setShowGrowthModal(false);
   };
 
