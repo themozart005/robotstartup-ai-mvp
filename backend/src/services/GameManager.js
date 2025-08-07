@@ -652,11 +652,11 @@ class GameManager extends EventEmitter {
           break;
           
         case 'invest_marketing':
-          // UPDATED: Valid in growth phase (all rounds)
-          if (game.currentPhase !== 'growth') {
-            return { success: false, error: 'Marketing investments only available in growth phase' };
-          }
-          result = this.processGrowthInvestment(game, player, move.data);
+		// Handle BOTH phase names for compatibility
+		  if (game.currentPhase !== 'growth' && game.currentPhase !== 'investment') {
+			return { success: false, error: 'Marketing investments only available in growth/investment phase' };
+		  }
+		  result = this.processGrowthInvestment(game, player, move.data);
           break;
           
         case 'take_loan':
@@ -685,7 +685,10 @@ class GameManager extends EventEmitter {
         case 'skip_production':
         case 'skip_sales':
         case 'skip_growth':
-        case 'skip_phase':
+        case 'skip_investment':
+		case 'skip_phase':
+		  
+		  console.log('✅ MATCHED: skip action -', move.action);
           result = this.processSkip(game, player, move.data);
           break;
           
@@ -842,7 +845,7 @@ class GameManager extends EventEmitter {
    * NEW: processGrowthInvestment - Replaces old marketing investment
    */
   processGrowthInvestment(game, player, data) {
-    if (game.currentPhase !== 'growth') {
+    if (game.currentPhase !== 'growth' && game.currentPhase !== 'investment')  {
       return { success: false, error: 'Invalid phase for growth investment' };
     }
 
