@@ -589,30 +589,77 @@ class GameManager extends EventEmitter {
    * Process a player move - UPDATED for new phases
    */
   async processPlayerMove(gameId, playerId, move) {
-	console.log('🔍 GameManager received move:', JSON.stringify(move, null, 2));
-	console.log('🔍 Move action type:', typeof move.action);
-	console.log('🔍 Move action value:', `"${move.action}"`);
-	console.log('🔍 Move has data?:', !!move.data);  
-    logger.info('🔍 GameManager received move:', {
-	  action: move?.action,
-      actionLength: move?.action?.length,
-      data: move?.data
-    });
+	logger.info('🚨🚨🚨 processPlayerMove START', {
+	  gameId: gameId,
+      playerId: playerId,
+      moveAction: move?.action,
+      moveData: JSON.stringify(move?.data)
+	});
 	
 	const game = this.games.get(gameId);
     if (!game) {
+      logger.error('🚨 Game not found:', gameId);
       return { success: false, error: 'Game not found' };
-    }
+	}
 
     const player = game.players.find(p => p.id === playerId);
     if (!player) {
+	  logger.error('🚨 Player not found:', playerId);
       return { success: false, error: 'Player not found' };
-    }
+	}
 	
 	// LOG THE CURRENT PHASE
-	console.log('🎮 Current game phase:', game.currentPhase);
-	console.log('🎮 Current round:', game.currentRound);
-	logger.info('🎮 Game state:', { phase: game.currentPhase, round: game.currentRound });
+	logger.info('🚨🚨🚨 GAME STATE CHECK', {
+      currentPhase: game.currentPhase,
+      currentRound: game.currentRound,
+      requestedAction: move.action,
+      phaseIsInvestment: game.currentPhase === 'investment',
+      phaseIsGrowth: game.currentPhase === 'growth'
+	});
+	
+	// HANDLE invest_marketing BEFORE THE SWITCH - THIS IS THE FIX
+	if (move.action === 'invest_marketing') {
+      logger.info('🚨🚨🚨 INTERCEPTING invest_marketing action');
+    
+    // Check if we're in investment or growth phase
+	  if (game.currentPhase === 'investment' || game.currentPhase === 'growth') {
+        logger.info('✅ Phase check passed for invest_marketing');
+      
+      // Check turn (skip for bootstrap, but check for other phases)
+        const currentPlayer = game.players[game.currentPlayerTurn];
+        if (currentPlayer.id !== playerId) {
+          logger.error('❌ Not player turn');
+          return { success: false, error: 'Not your turn' };
+		}
+      
+      // Process the investment
+		const result = this.processGrowthInvestment(game, player, move.data);
+      
+		if (result.success) {
+          logger.info('✅ Growth investment successful');
+          if (player.type !== 'ai') {
+            this.advanceToNextTurn(gameId);
+          }
+          return {
+            success: true,
+            message: result.message || 'Investment processed successfully',
+            gameState: game,
+            moveResult: result
+          };
+        } else {
+          logger.error('❌ Growth investment failed:', result.error);
+          return { success: false, error: result.error };
+		}
+      } else {
+        logger.error('❌ Wrong phase for invest_marketing:', game.currentPhase);
+        return { 
+          success: false, 
+          error: `Marketing investments only available in growth/investment phase (current: ${game.currentPhase})` 
+		};
+      }
+	}
+
+	
 	
     // FIXED: Special handling for bootstrap phase
 	if (move.action === 'collect_income' && game.currentPhase === 'bootstrap' && game.currentRound === 1) {
@@ -633,68 +680,75 @@ class GameManager extends EventEmitter {
     try {
       let result;
       // LOG RIGHT BEFORE SWITCH
-	  console.log(`🎯 About to switch on action: "${move.action}"`);
+	  logger.info('🎯 Entering switch statement', {
+        action: move.action,
+        phase: game.currentPhase
+	  });
       switch (move.action) {
         case 'collect_income':
-          // UPDATED: Only valid in bootstrap phase (Round 1)
+          logger.info('✅ MATCHED: collect_income');
           if (game.currentPhase !== 'bootstrap') {
             return { success: false, error: 'Bootstrap funding only available in Round 1' };
           }
           result = this.processIncomeCollection(game, player);
           break;
-          
-        case 'select_funding':
-          // UPDATED: Only valid in funding phase (Round 2+)  
+        
+		case 'select_funding':
+          logger.info('✅ MATCHED: select_funding');
           if (game.currentPhase !== 'funding') {
             return { success: false, error: 'Funding selection only available in funding phase' };
           }
           result = this.processFundingSelection(game, player, move.data);
           break;
-          
-        case 'invest_marketing':
-		// Handle BOTH phase names for compatibility
-		  if (game.currentPhase !== 'growth' && game.currentPhase !== 'investment') {
-			return { success: false, error: 'Marketing investments only available in growth/investment phase' };
-		  }
-		  result = this.processGrowthInvestment(game, player, move.data);
+        
+		case 'invest_marketing':
+        // This case should never be reached now because we handle it above
+          logger.warn('⚠️ invest_marketing reached switch - should have been handled above');
+          if (game.currentPhase !== 'growth' && game.currentPhase !== 'investment') {
+            return { success: false, error: 'Marketing investments only available in growth/investment phase' };
+          }
+          result = this.processGrowthInvestment(game, player, move.data);
           break;
-          
-        case 'take_loan':
-          // UPDATED: Only available in funding phase (Round 2+) for established companies
+        
+		case 'take_loan':
+          logger.info('✅ MATCHED: take_loan');
           if (game.currentPhase !== 'funding' || game.currentRound === 1) {
             return { success: false, error: 'Business loans only available for established companies (Round 2+)' };
           }
           result = this.processLoanApplication(game, player, move.data);
           break;
-          
-        case 'invest_r&d':
+        
+		case 'invest_r&d':
+          logger.info('✅ MATCHED: invest_r&d');
           result = this.processRnDInvestment(game, player, move.data);
           break;
-          
-        case 'build_robots':
+        
+		case 'build_robots':
+          logger.info('✅ MATCHED: build_robots');
           result = this.processRobotProduction(game, player, move.data);
           break;
-          
-        case 'sell_robots':
+        
+		case 'sell_robots':
+          logger.info('✅ MATCHED: sell_robots');
           result = this.processRobotSales(game, player, move.data);
           break;
-          
-        case 'skip_bootstrap':
-        case 'skip_funding': 
-        case 'skip_r&d':
-        case 'skip_production':
-        case 'skip_sales':
-        case 'skip_growth':
-        case 'skip_investment':
+        
+		case 'skip_bootstrap':
+		case 'skip_funding': 
+		case 'skip_r&d':
+		case 'skip_production':
+		case 'skip_sales':
+		case 'skip_growth':
+		case 'skip_investment':
 		case 'skip_phase':
-		  
-		  console.log('✅ MATCHED: skip action -', move.action);
+          logger.info('✅ MATCHED: skip action -', move.action);
           result = this.processSkip(game, player, move.data);
           break;
-          
-        default:
+        
+		default:
+          logger.error('❌ NO MATCH in switch for action:', move.action);
           return { success: false, error: 'Invalid action' };
-      }
+	  }
 
       if (result.success) {
         if (player.type === 'ai') {
@@ -845,7 +899,13 @@ class GameManager extends EventEmitter {
    * NEW: processGrowthInvestment - Replaces old marketing investment
    */
   processGrowthInvestment(game, player, data) {
+	logger.info('🚨 processGrowthInvestment called', {
+      phase: game.currentPhase,
+      investmentType: data?.investmentType,
+      amount: data?.amount
+	});
     if (game.currentPhase !== 'growth' && game.currentPhase !== 'investment')  {
+	  logger.error('❌ Invalid phase for growth investment:', game.currentPhase);
       return { success: false, error: 'Invalid phase for growth investment' };
     }
 
