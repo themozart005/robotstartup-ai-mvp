@@ -297,6 +297,26 @@ const GameBoard: React.FC = () => {
     };
   }, [gameId, navigate, currentSession, startSession, currentGame, isConnected, joinGame]);
 
+  // Cleanup effect for finished games
+  useEffect(() => {
+    return () => {
+      // Clear finished game state when leaving the component
+      if (currentGame?.status === 'finished') {
+        console.log('Clearing finished game state on unmount');
+        leaveGame();
+      }
+    };
+  }, [currentGame?.status, leaveGame]);
+
+  // Prevent showing stale finished games
+  useEffect(() => {
+    if (currentGame?.status === 'finished' && !gameId) {
+      console.log('Finished game but no gameId, clearing...');
+      leaveGame();
+      navigate('/');
+    }
+  }, [currentGame?.status, gameId, leaveGame, navigate]);
+
   // Get current phase information and player
   const phaseInfo = getCurrentPhaseInfo();
   const myPlayer = currentPlayer;
@@ -614,7 +634,11 @@ const GameBoard: React.FC = () => {
                 View Detailed Results
               </button>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  // Clear game state before navigating
+                  leaveGame();
+                  navigate('/');
+                }}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 <Star size={20} />
@@ -703,24 +727,16 @@ const GameBoard: React.FC = () => {
     return (
       <div>
         <WinnerScreen />
-        {/* Still render modals for detailed results */}
-        <AnimatePresence>
-          {showFinancials && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-              <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b">
-                  <h2 className="text-xl font-bold">Final Financial Results</h2>
-                  <button onClick={() => setShowFinancials(false)}>
-                    <X size={24} />
-                  </button>
-                </div>
-                <div className="p-4 overflow-y-auto max-h-[80vh]">
-                  <FinancialDashboard playerId={myPlayer.id} />
-                </div>
-              </div>
-            </div>
-          )}
-        </AnimatePresence>
+        {/* Financial Dashboard Modal */}
+        {showFinancials && myPlayer && currentGame && (
+          <FinancialDashboard 
+            player={myPlayer}
+            gameHistory={currentGame.eventHistory || []}
+            isOpen={showFinancials}
+            onClose={() => setShowFinancials(false)}
+            onRequestHelp={handleAIHelp}
+          />
+        )}
       </div>
     );
   }
@@ -1011,20 +1027,14 @@ const GameBoard: React.FC = () => {
           />
         )}
 
-        {showFinancials && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-              <div className="flex justify-between items-center p-4 border-b">
-                <h2 className="text-xl font-bold">Financial Dashboard</h2>
-                <button onClick={() => setShowFinancials(false)}>
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto max-h-[80vh]">
-                <FinancialDashboard playerId={myPlayer.id} />
-              </div>
-            </div>
-          </div>
+        {showFinancials && myPlayer && currentGame && (
+          <FinancialDashboard 
+            player={myPlayer}
+            gameHistory={currentGame.eventHistory || []}
+            isOpen={showFinancials}
+            onClose={() => setShowFinancials(false)}
+            onRequestHelp={handleAIHelp}
+          />
         )}
       </AnimatePresence>
     </div>
