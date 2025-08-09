@@ -912,19 +912,44 @@ class GameManager extends EventEmitter {
     const { investmentType, amount } = data;
     const round = game.currentRound;
     
-    // Get available growth options based on round
-    const growthOptions = this.getGrowthOptions(round);
-    const selectedOption = growthOptions.find(opt => opt.id === investmentType);
-    
-    if (!selectedOption) {
-      return { success: false, error: 'Invalid growth investment option' };
-    }
+    // Validate investment type - include ALL valid types
+	const validInvestmentTypes = [
+	  'brand_awareness',
+      'customer_acquisition', 
+      'market_research',
+      'product_improvement',
+      'operational_efficiency',
+      'international_expansion',
+      'strategic_partnership',
+      'automation',
+      'customer_retention',
+      'digital_marketing',
+      'trade_shows',
+      'strategic_partnerships',
+      'partnerships',
+      'skip_growth'
+	];
 
-    if (player.cash < selectedOption.cost) {
-      return { success: false, error: 'Insufficient funds for growth investment' };
-    }
+	if (!validInvestmentTypes.includes(investmentType)) {
+      logger.error('❌ Invalid investment type:', investmentType);
+      return { success: false, error: `Invalid investment type: ${investmentType}` };
+	}
 
-    player.cash -= selectedOption.cost;
+// Get the option details if it exists in current round options
+	const growthOptions = this.getGrowthOptions(round);
+	const selectedOption = growthOptions.find(opt => opt.id === investmentType) || {
+	  id: investmentType,
+	  name: investmentType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+	  cost: amount || 50000,
+      effects: { reputation: 5, futuresalesBoost: 0.1 }
+	};
+
+    const investmentAmount = amount || selectedOption.cost;
+	if (player.cash < investmentAmount) {
+	  return { success: false, error: 'Insufficient funds for growth investment' };
+	}
+
+    player.cash -= investmentAmount;
     
     // Apply growth effects
     if (selectedOption.effects.reputation) {
@@ -1332,73 +1357,67 @@ class GameManager extends EventEmitter {
    */
   getProductionCapacity(player, difficulty, currentRound = 1) {
     // Round 1: Limited capacity to prove concept
-    if (currentRound === 1) {
-      let baseCapacity = 3;
-      
-      // Adjust for difficulty in Round 1
-      switch (difficulty) {
-        case 'beginner': baseCapacity = 4; break;
-        case 'advanced': baseCapacity = 2; break;
-        default: baseCapacity = 3;
-      }
-      
-      // Small technology bonuses for Round 1
-      const productionTechs = player.technologies.filter(t => 
-        t.benefits && t.benefits.productionBonus
-      );
-      
-      const techBonus = productionTechs.reduce((sum, tech) => 
-        sum + (tech.benefits.productionBonus || 0), 0
-      );
-      
-      return Math.floor(baseCapacity * (1 + techBonus));
-    }
-    
-    // Round 2+: Scale based on funding and cash flow
-    const playerCash = player.cash || 0;
-    const totalFundingRaised = (player.fundingRounds || []).reduce((sum, round) => sum + round.amount, 0);
-    const totalRevenue = player.stats?.totalRevenue || 0;
-    
-    // Base scaling factors
-    let scaledCapacity = 5; // Base for Round 2+
-    
-    // Cash flow scaling (every $100k = +1 capacity)
-    const cashBonus = Math.floor(playerCash / 100000);
-    
-    // Funding scaling (every $250k raised = +2 capacity)  
-    const fundingBonus = Math.floor(totalFundingRaised / 250000) * 2;
-    
-    // Revenue scaling (every $500k revenue = +1 capacity)
-    const revenueBonus = Math.floor(totalRevenue / 500000);
-    
-    // Technology scaling (more significant for Round 2+)
-    const productionTechs = player.technologies.filter(t => 
-      t.benefits && t.benefits.productionBonus
-    );
-    
-    const techBonus = productionTechs.reduce((sum, tech) => 
-      sum + (tech.benefits.productionBonus || 0), 0
-    );
-    const techCapacityBonus = Math.floor(techBonus * 10); // Convert percentage to capacity bonus
-    
-    // Calculate total capacity
-    scaledCapacity += cashBonus + fundingBonus + revenueBonus + techCapacityBonus;
-    
-    // Apply difficulty modifier for Round 2+
-    switch (difficulty) {
-      case 'beginner': scaledCapacity = Math.floor(scaledCapacity * 1.2); break;
-      case 'advanced': scaledCapacity = Math.floor(scaledCapacity * 0.8); break;
-      default: break; // No modifier for normal
-    }
-    
-    // Reasonable maximum to prevent game breaking
-    const maxCapacity = 25;
-    
-    const finalCapacity = Math.min(scaledCapacity, maxCapacity);
-    
-    logger.info(`🏭 ${player.name} production capacity (Round ${currentRound}): ${finalCapacity} (Cash: ${cashBonus}, Funding: ${fundingBonus}, Revenue: ${revenueBonus}, Tech: ${techCapacityBonus})`);
-    
-    return Math.max(1, finalCapacity); // Minimum 1
+    let capacity = 3;
+  
+  // Scale significantly with rounds
+    capacity += (currentRound - 1) * 3; // +3 per round
+  
+  // Scale with cash reserves (more aggressive)
+	const playerCash = player.cash || 0;
+	if (playerCash >= 500000) capacity += 2;
+	if (playerCash >= 1000000) capacity += 3;
+	if (playerCash >= 2000000) capacity += 4;
+	if (playerCash >= 5000000) capacity += 5;
+  
+  // Scale with funding rounds
+	const fundingRounds = player.fundingRounds?.length || 0;
+	capacity += fundingRounds * 2;
+  
+  // Scale with technologies (more significant bonus)
+	const techCount = player.technologies?.length || 0;
+	capacity += techCount * 2;
+  
+  // Check for specific production-enhancing technologies
+	if (player.technologies?.some(t => t.name?.includes('automation') || t.name?.includes('Automation'))) {
+      capacity += 5;
+	}
+	if (player.technologies?.some(t => t.name?.includes('mass') || t.name?.includes('production'))) {
+      capacity += 4;
+	}
+  
+  // Scale with growth investments in operational efficiency
+	const efficiencyInvestments = player.growthEffects?.filter(e => 
+      e.type === 'operational_efficiency' || 
+      e.type === 'automation' ||
+      e.type === 'international_expansion'
+	) || [];
+    capacity += efficiencyInvestments.length * 3;
+  
+  // Scale with total revenue (success breeds success)
+	const totalRevenue = player.stats?.totalRevenue || 0;
+	if (totalRevenue >= 1000000) capacity += 2;
+	if (totalRevenue >= 5000000) capacity += 3;
+	if (totalRevenue >= 10000000) capacity += 5;
+  
+  // Difficulty adjustments
+	switch (difficulty) {
+      case 'beginner': 
+        capacity = Math.floor(capacity * 1.3); // 30% bonus
+        break;
+      case 'advanced': 
+        capacity = Math.floor(capacity * 0.8); // 20% penalty
+        break;
+	}
+  
+  // Minimum of 5 after round 1, maximum of 50 for balance
+   const minCapacity = currentRound === 1 ? 3 : 5;
+   const maxCapacity = 50;
+  
+   const finalCapacity = Math.max(minCapacity, Math.min(maxCapacity, capacity));
+  
+   logger.info(`🏭 Production capacity for ${player.name} (Round ${currentRound}): ${finalCapacity}`);
+  
+   return finalCapacity;
   }
 
   /**

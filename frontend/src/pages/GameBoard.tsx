@@ -353,11 +353,23 @@ const GameBoard: React.FC = () => {
   // Handle leaving the game
   const handleLeaveGame = () => {
     if (window.confirm('Are you sure you want to leave the game? Your progress will be saved.')) {
-      if (socketService.isConnected() && currentGame) {
-        socketService.leaveGame(currentGame.id);
+      try {
+        if (socketService.isConnected() && currentGame) {
+          socketService.leaveGame(currentGame.id);
+        }
+        leaveGame();
+      // Force navigation with a fallback
+        setTimeout(() => {
+          navigate('/');
+        // If navigate doesn't work, force reload
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 500);
+        }, 100);
+      } catch (error) {
+        console.error('Error leaving game:', error);
+        window.location.href = '/';
       }
-      leaveGame();
-      navigate('/');
     }
   };
 

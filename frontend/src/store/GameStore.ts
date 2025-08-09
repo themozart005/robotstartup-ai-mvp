@@ -560,17 +560,53 @@ export const useGameStore = create<GameStore>()(
     },
 
     leaveGame: () => {
-      get().cleanupSocketHandlers();
-      set({
-        currentGame: null,
-        currentPlayer: null,
-        currentPlayerId: null,
-        isMyTurn: false,
-        pendingMove: null,
-        aiTutoring: null
-      });
-      toast.success('Left the game');
-    },
+	  const { currentGame, socketService } = get();
+  
+	  console.log('Leaving game, clearing all state...');
+  
+	  try {
+    // Disconnect from game room if connected
+		 if (currentGame && socketService) {
+           socketService.leaveGame(currentGame.id);
+		 }
+    
+    // Clear ALL game-related state
+         set({
+			currentGame: null,
+			currentPlayer: null,
+			isInGame: false,
+			gamePhase: null,
+			currentRound: 1,
+			marketConditions: null,
+			isMyTurn: false,
+			phaseTimeRemaining: null,
+			finalResults: null,
+			showFinalResults: false,
+			aiGuidance: null,
+			aiGuidanceHistory: [],
+			selectedAction: null,
+		 });
+    
+    // Clear session storage
+		 if (typeof window !== 'undefined') {
+           sessionStorage.clear();
+		   localStorage.removeItem('currentGameState');
+           localStorage.removeItem('gameId');
+		 }  
+    
+         console.log('Game state cleared successfully');
+    
+    // Force navigation after a small delay to ensure state is cleared
+		 setTimeout(() => {
+           window.location.href = '/';  // Use direct navigation instead of React Router
+		 }, 100);
+    
+      } catch (error) {
+		console.error('Error leaving game:', error);
+    // Force navigation even if there's an error
+		window.location.href = '/';
+	  }
+	},
 
     // FIXED: Only ONE makeMove method with bootstrap handling
     makeMove: async (move) => {
