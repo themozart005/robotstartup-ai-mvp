@@ -935,7 +935,7 @@ const socketService = {
       isConnected: typeof socketService.isConnected,
       on: typeof socketService.on,
       off: typeof socketService.off,
-      requestHelp: typeof socketService.requestHelp
+      requestHelp: typeof socketService.requestHelp,
 	  leaveGame: typeof socketService.leaveGame
     };
     safeLog.log('🔍 SocketService method check:', methods);
