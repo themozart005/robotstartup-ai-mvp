@@ -385,11 +385,47 @@ io.on('connection', (socket) => {
         return;
       }
       
-      logger.info(`✅ Game ${gameId} found, adding player ${playerName}`);
+	  // Check if player already exists in the game
+	  let playerId = socket.id;
+      const existingPlayer = existingGame.players.find(p => p.name === playerName);
+      
+	  if (existingPlayer) {
+      // Player rejoining - update their ID to the new socket ID
+		logger.info(`🔄 Player ${playerName} rejoining with new socket ID`);
+      
+		// Update the player ID in the game
+		existingPlayer.id = socket.id;
+		playerId = socket.id;
+      
+		// Store on socket
+		socket.gameId = gameId;
+		socket.playerId = playerId;
+		socket.playerName = playerName;
+      
+		// Join the room
+		socket.join(gameId);
+		// Send success with existing game state
+		socket.emit('join-game-success', {
+		  gameId: gameId,
+          playerId: playerId,
+          gameState: existingGame,
+          message: `Rejoined game as ${playerName}`
+		});
+		
+		// Notify others
+		socket.to(gameId).emit('player-rejoined', {
+          player: existingPlayer,
+          gameState: existingGame
+		});
+		return;
+	  }
+	  
+	  // NEW PLAYER CASE - Keep your existing code for new players
+	  logger.info(`✅ Game ${gameId} found, adding NEW player ${playerName}`);
       
       socket.join(gameId);
       
-      const playerId = socket.id;
+      //const playerId = socket.id;
       
       const gameState = await gameManager.addPlayerToGame(gameId, playerId, playerName, playerType);
       

@@ -82,7 +82,16 @@ class GameManager extends EventEmitter {
       throw new Error('Game not found');
     }
 
-    if (game.status !== 'waiting') {
+    // Check if player is rejoining (by name)
+	const existingPlayer = game.players.find(p => p.name === playerName);
+	if (existingPlayer) {
+    // Update socket ID for reconnection
+      existingPlayer.id = playerId;
+      logger.info(`👤 Player ${playerName} reconnected to game ${gameId}`);
+      return game;
+	}
+	
+	if (game.status !== 'waiting') {
       throw new Error('Game has already started');
     }
 

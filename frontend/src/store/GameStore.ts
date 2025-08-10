@@ -906,13 +906,21 @@ export const gameHelpers = {
     return (player.cash || 0) >= cost;
   },
 
-  formatCurrency: (amount: number): string => {
-    if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`;
-    } else if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(0)}K`;
+  formatCurrency: (amount: number | null | undefined): string => {
+  // Handle null/undefined values
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '$0';
+    }
+  
+  // Ensure amount is a number
+    const numAmount = Number(amount);
+  
+    if (numAmount >= 1000000) {
+	  return `$${(numAmount / 1000000).toFixed(1)}M`;
+    } else if (numAmount >= 1000) {
+      return `$${(numAmount / 1000).toFixed(0)}K`;
     } else {
-      return `$${amount.toLocaleString()}`;
+      return `$${numAmount.toLocaleString()}`;
     }
   },
 
@@ -933,65 +941,60 @@ export const gameHelpers = {
 
   // NEW: Calculate production capacity (mirrors backend logic)
   calculateProductionCapacity: (player: Player, currentRound: number = 1): number => {
-    console.log(`🏭 Calculating production capacity for Round ${currentRound}:`, {
-      cash: player.cash,
-      fundingRounds: player.fundingRounds?.length || 0,
-      totalRevenue: player.stats?.totalRevenue || 0
-    });
-    
-    // Round 1: Limited capacity to prove concept
-    if (currentRound === 1) {
-      let baseCapacity = 3;
-      const productionTechs = (player.technologies || []).filter(t => 
-        t.name && (t.name.includes('Factory') || t.name.includes('Production'))
-      );
-      const techBonus = productionTechs.reduce((sum, tech) => sum + (tech.benefit || 0), 0);
-      const finalCapacity = Math.floor(baseCapacity * (1 + techBonus * 0.1));
-      
-      console.log(`🏭 Round 1 capacity: ${finalCapacity} (base: ${baseCapacity}, tech bonus: ${techBonus})`);
-      return finalCapacity;
-    }
-    
-    // Round 2+: Scale based on funding and cash flow
-    const playerCash = player.cash || 0;
-    const totalFundingRaised = (player.fundingRounds || []).reduce((sum, round) => sum + round.amount, 0);
-    const totalRevenue = player.stats?.totalRevenue || 0;
-    
-    let scaledCapacity = 5; // Base for Round 2+
-    
-    // Cash flow scaling (every $100k = +1 capacity)
-    const cashBonus = Math.floor(playerCash / 100000);
-    
-    // Funding scaling (every $250k raised = +2 capacity)  
-    const fundingBonus = Math.floor(totalFundingRaised / 250000) * 2;
-    
-    // Revenue scaling (every $500k revenue = +1 capacity)
-    const revenueBonus = Math.floor(totalRevenue / 500000);
-    
-    // Technology scaling
-    const productionTechs = (player.technologies || []).filter(t => 
-      t.name && (t.name.includes('Factory') || t.name.includes('Production') || t.name.includes('Motors') || t.name.includes('Automation'))
-    );
-    const techBonus = productionTechs.length * 2; // Each production tech adds 2 capacity
-    
-    scaledCapacity += cashBonus + fundingBonus + revenueBonus + techBonus;
-    
-    // Reasonable maximum to prevent game breaking
-    const maxCapacity = 25;
-    const finalCapacity = Math.min(Math.max(1, scaledCapacity), maxCapacity);
-    
-    console.log(`🏭 Round ${currentRound} capacity calculation:`, {
-      baseCapacity: 5,
-      cashBonus,
-      fundingBonus,
-      revenueBonus,
-      techBonus,
-      scaledCapacity,
-      finalCapacity
-    });
-    
-    return finalCapacity;
-  }
+    console.log('🏭 Calculating production capacity for Round', round, player);
+  
+  // Base capacity starts at 3
+	let capacity = 3;
+  
+  // Scale significantly with rounds
+	capacity += (round - 1) * 3; // +3 per round (so Round 3 = 9 base)
+  
+  // Scale with cash reserves
+	const playerCash = player.cash || 0;
+	if (playerCash >= 500000) capacity += 2;
+	if (playerCash >= 1000000) capacity += 3;
+	if (playerCash >= 2000000) capacity += 4;
+	if (playerCash >= 5000000) capacity += 5;
+  
+  // Scale with funding rounds
+	const fundingRounds = player.fundingRounds?.length || 0;
+	capacity += fundingRounds * 2;
+  
+  // Scale with technologies
+	const techCount = player.technologies?.length || 0;
+	capacity += techCount * 2;
+  
+  // Scale with growth investments
+	const efficiencyInvestments = player.growthEffects?.filter(e => 
+      e.type === 'operational_efficiency' || 
+      e.type === 'automation' ||
+      e.type === 'international_expansion'
+	)?.length || 0;
+    capacity += efficiencyInvestments * 3;
+  
+  // Scale with total revenue
+	const totalRevenue = player.stats?.totalRevenue || 0;
+	if (totalRevenue >= 1000000) capacity += 2;
+	if (totalRevenue >= 5000000) capacity += 3;
+  
+  // Minimum of 5 after round 1
+	const minCapacity = round === 1 ? 3 : 5;
+	const maxCapacity = 50;
+  
+	const finalCapacity = Math.max(minCapacity, Math.min(maxCapacity, capacity));
+  
+	console.log('🏭 Round', round, 'capacity calculation:', {
+      base: 3,
+      roundBonus: (round - 1) * 3,
+      cashBonus: playerCash >= 5000000 ? 14 : playerCash >= 2000000 ? 9 : playerCash >= 1000000 ? 5 : playerCash >= 500000 ? 2 : 0,
+      fundingBonus: fundingRounds * 2,
+      techBonus: techCount * 2,
+      efficiencyBonus: efficiencyInvestments * 3,
+      final: finalCapacity
+	});
+  
+	return finalCapacity;
+  },
 };
 
 export default useGameStore;
