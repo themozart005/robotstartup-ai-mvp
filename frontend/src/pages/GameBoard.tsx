@@ -319,7 +319,7 @@ const GameBoard: React.FC = () => {
 
   // Get current phase information and player
   const phaseInfo = getCurrentPhaseInfo();
-  const myPlayer = currentPlayer;
+  const myPlayer = currentGame?.players?.find(p => p.id === currentPlayer);
 
   // Debug logging with forced updates
   useEffect(() => {
@@ -354,9 +354,9 @@ const GameBoard: React.FC = () => {
   const handleLeaveGame = () => {
     if (window.confirm('Are you sure you want to leave the game? Your progress will be saved.')) {
       try {
-        if (socketService.isConnected() && currentGame) {
-          socketService.leaveGame(currentGame.id);
-        }
+        //if (socketService.isConnected() && currentGame) {
+          //socketService.leaveGame(currentGame.id);
+        //}
         leaveGame();
       // Force navigation with a fallback
         setTimeout(() => {
