@@ -978,14 +978,14 @@ export const gameHelpers = {
 	if (totalRevenue >= 5000000) capacity += 3;
   
   // Minimum of 5 after round 1
-	const minCapacity = round === 1 ? 3 : 5;
+	const minCapacity = currentRound === 1 ? 3 : 5;
 	const maxCapacity = 50;
   
 	const finalCapacity = Math.max(minCapacity, Math.min(maxCapacity, capacity));
   
-	console.log('🏭 Round', round, 'capacity calculation:', {
+	console.log('🏭 Round', currentRound, 'capacity calculation:', {
       base: 3,
-      roundBonus: (round - 1) * 3,
+      roundBonus: (currentRound - 1) * 3,
       cashBonus: playerCash >= 5000000 ? 14 : playerCash >= 2000000 ? 9 : playerCash >= 1000000 ? 5 : playerCash >= 500000 ? 2 : 0,
       fundingBonus: fundingRounds * 2,
       techBonus: techCount * 2,

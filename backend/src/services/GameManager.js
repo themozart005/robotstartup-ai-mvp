@@ -99,10 +99,7 @@ class GameManager extends EventEmitter {
       throw new Error('Game is full');
     }
 
-    const existingPlayer = game.players.find(p => p.id === playerId);
-    if (existingPlayer) {
-      throw new Error('Player already in game');
-    }
+    
 
     const player = {
       id: playerId,
