@@ -47,7 +47,7 @@ const GameBoard: React.FC = () => {
   
   // Use store selectors properly for reactive updates
   const currentGame = useGameStore(state => state.currentGame);
-  const currentPlayer = useGameStore(state => state.currentPlayer);
+  const currentPlayerId = useGameStore(state => state.currentPlayerId);
   const isMyTurn = useGameStore(state => state.isMyTurn);
   const isConnected = useGameStore(state => state.isConnected);
   const canMakeMove = useGameStore(state => state.canMakeMove);
@@ -319,7 +319,7 @@ const GameBoard: React.FC = () => {
 
   // Get current phase information and player
   const phaseInfo = getCurrentPhaseInfo();
-  const myPlayer = currentGame?.players?.find(p => p.id === currentPlayer);
+  const myPlayer = currentGame?.players?.find(p => p.id === currentPlayerId);
 
   // Debug logging with forced updates
   useEffect(() => {
