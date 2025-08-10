@@ -426,6 +426,9 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.joinAttempts.clear(); // Clear join attempts on reconnect
       this.notifyConnectionStatus(true);
+	  
+	  // AUTO-REJOIN GAME AFTER RECONNECTION
+	  this.rejoinCurrentGame();
     });
 
     this.socket.on('reconnect_failed', () => {
@@ -744,6 +747,32 @@ class SocketService {
       return null;
     }
   }
+  
+  /**
+ * Rejoin current game after reconnection
+ */
+  private async rejoinCurrentGame() {
+    try {
+	  const { useGameStore } = await import('../store/GameStore');
+	  const store = useGameStore.getState();
+	  const currentGame = store.currentGame;
+	
+	  if (currentGame && currentGame.id) {
+	    const playerName = localStorage.getItem('playerName') || 'Player';
+	    safeLog.log('🔄 Auto-rejoining game after reconnection:', currentGame.id);
+	  
+	  // Clear the join attempt tracking to allow rejoin
+	    const joinKey = `${currentGame.id}-${playerName}`;
+	    this.joinAttempts.delete(joinKey);
+	  
+	  // Rejoin the game
+	    this.joinGame(currentGame.id, playerName, 'human');
+	  }
+	} catch (error) {
+	  safeLog.error('Failed to auto-rejoin game:', error);
+	}
+  }
+  
   
   /**
  * Leave a game

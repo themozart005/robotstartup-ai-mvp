@@ -467,6 +467,27 @@ io.on('connection', (socket) => {
       const { gameId, move } = data;
       const playerId = socket.playerId || socket.id;
       
+	  // Try to find player by socket ID first, then by name
+	  const game = gameManager.activeGames.get(gameId);
+      if (game) {
+        let player = game.players.find(p => p.id === playerId);
+      
+      // If not found by ID, try to find by name and update the ID
+        if (!player && socket.playerName) {
+          player = game.players.find(p => p.name === socket.playerName);
+          if (player) {
+          // Update the player's ID to the new socket ID
+            player.id = socket.id;
+            logger.info(`🔄 Updated player ${player.name} ID to new socket ID: ${socket.id}`);
+          }
+        }
+      
+        if (!player) {
+          socket.emit('move-error', { message: 'Player not found. Please rejoin the game.' });
+          return;
+		}
+      }
+	  
       logger.info(`🎯 Processing move from player ${playerId} (${socket.playerName || 'Unknown'}) in game ${gameId}:`, move);
       
       const result = await gameManager.processPlayerMove(gameId, playerId, move);

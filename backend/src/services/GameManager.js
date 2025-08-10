@@ -608,9 +608,23 @@ class GameManager extends EventEmitter {
       return { success: false, error: 'Game not found' };
 	}
 
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-	  logger.error('🚨 Player not found:', playerId);
+    // Try to find player by ID first
+	let player = game.players.find(p => p.id === playerId);
+
+	// If not found, try to match by socket ID pattern and update
+	if (!player) {
+  // Socket IDs have a similar pattern, try to find any human player
+  // This is a temporary fix for reconnection issues
+	  const humanPlayers = game.players.filter(p => p.type === 'human');
+      if (humanPlayers.length === 1) {
+        player = humanPlayers[0];
+		player.id = playerId; // Update to new socket ID
+		logger.info(`🔄 Updated player ${player.name} to new socket ID: ${playerId}`);
+	  }
+	}
+
+	if (!player) {
+      logger.error('🚨 Player not found:', playerId);
       return { success: false, error: 'Player not found' };
 	}
 	
