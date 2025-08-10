@@ -744,6 +744,28 @@ class SocketService {
       return null;
     }
   }
+  
+  /**
+ * Leave a game
+ */
+  leaveGame(gameId: string) {
+	try {
+	  if (!this.socket?.connected) {
+		safeLog.warn('Cannot leave game - not connected to server');
+		return;
+	  }
+
+	  safeLog.log('👋 Leaving game:', gameId);
+		
+	  this.socket.emit('leave-game', {
+		  gameId
+	  });
+	} catch (error) {
+	  safeLog.error('❌ Error leaving game:', error);
+	}
+  }
+
+
 
   /**
    * Disconnect from the server
@@ -901,7 +923,8 @@ const socketService = {
     socketServiceInstance.off.call(socketServiceInstance, event, callback),
   requestHelp: (concept: string, context?: any) =>
     socketServiceInstance.requestHelp.call(socketServiceInstance, concept, context),
-  
+  leaveGame: (gameId: string) => 
+    socketServiceInstance.leaveGame.call(socketServiceInstance, gameId),
   // Debug method to check if all methods are working
   debugMethods: () => {
     const methods = {
@@ -913,6 +936,7 @@ const socketService = {
       on: typeof socketService.on,
       off: typeof socketService.off,
       requestHelp: typeof socketService.requestHelp
+	  leaveGame: typeof socketService.leaveGame
     };
     safeLog.log('🔍 SocketService method check:', methods);
     return methods;

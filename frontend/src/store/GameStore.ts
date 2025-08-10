@@ -941,13 +941,13 @@ export const gameHelpers = {
 
   // NEW: Calculate production capacity (mirrors backend logic)
   calculateProductionCapacity: (player: Player, currentRound: number = 1): number => {
-    console.log('🏭 Calculating production capacity for Round', round, player);
+    console.log('🏭 Calculating production capacity for Round', currentRound, player);
   
   // Base capacity starts at 3
 	let capacity = 3;
   
   // Scale significantly with rounds
-	capacity += (round - 1) * 3; // +3 per round (so Round 3 = 9 base)
+	capacity += (currentRound - 1) * 3; // +3 per round (so Round 3 = 9 base)
   
   // Scale with cash reserves
 	const playerCash = player.cash || 0;
