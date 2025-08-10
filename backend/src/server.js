@@ -1,6 +1,12 @@
 // backend/src/server.js
 // COMPLETE DEPLOYMENT-READY VERSION - Works both locally and externally
 
+// Debug startup
+console.log('🚀 Server starting...');
+console.log('PORT from env:', process.env.PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Current directory:', __dirname);
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -628,32 +634,56 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down server gracefully');
   server.close(() => {
     logger.info('Server shut down complete');
+    // Clean up resources
+    if (gameManager && gameManager.cleanup) {
+      gameManager.cleanup();
+    }
     process.exit(0);
   });
+  // Force exit after 10 seconds if graceful shutdown fails
+  setTimeout(() => {
+    logger.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+  
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down server gracefully');
   server.close(() => {
     logger.info('Server shut down complete');
+    if (gameManager && gameManager.cleanup) {
+      gameManager.cleanup();
+    }
     process.exit(0);
   });
+  
+  setTimeout(() => {
+    logger.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
-  process.exit(1);
+  // Give Railway time to log the error
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  // Give Railway time to log the error
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 });
 
 // Start the server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 RoboStartup AI server running on port ${PORT}`);
   logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🌐 CORS enabled for: ${getAllowedOrigins().length} origins`);
