@@ -1164,7 +1164,20 @@ class GameManager extends EventEmitter {
 
     // UPDATED: Pass current round for scalable capacity
     const maxProduction = this.getProductionCapacity(player, game.gameSettings.difficulty, game.currentRound);
-    if (player.robotsBuiltThisRound + quantity > maxProduction) {
+    
+	// Initialize if not set
+	if (!player.robotsBuiltThisRound) {
+	  player.robotsBuiltThisRound = 0;
+	}
+  
+	logger.info(`🏭 Production check for ${player.name}:`, {
+      requestedQuantity: quantity,
+      alreadyBuilt: player.robotsBuiltThisRound,
+      maxCapacity: maxProduction,
+      currentRound: game.currentRound
+	});
+	
+	if (player.robotsBuiltThisRound + quantity > maxProduction) {
       return { 
         success: false, 
         error: `Exceeds production capacity (${player.robotsBuiltThisRound}/${maxProduction} used)` 
@@ -1436,14 +1449,15 @@ class GameManager extends EventEmitter {
 	}
   
   // Minimum of 5 after round 1, maximum of 50 for balance
-   const minCapacity = currentRound === 1 ? 5 : 10;
-   const maxCapacity = 50;
+   const minCapacity = currentRound === 1 ? 5 : 15;
+   const maxCapacity = 100;
   
    const finalCapacity = Math.max(minCapacity, Math.min(maxCapacity, capacity));
   
    logger.info(`🏭 Production capacity for ${player.name} (Round ${currentRound}): ${finalCapacity}`);
   
    return finalCapacity;
+
   }
 
   /**
