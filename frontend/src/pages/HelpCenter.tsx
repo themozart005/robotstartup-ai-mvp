@@ -25,7 +25,8 @@ import {
   CreditCard,
   TrendingUp,
   Sparkles,
-  Mail
+  Mail,
+  Trophy
 } from 'lucide-react';
 
 interface HelpTopic {
