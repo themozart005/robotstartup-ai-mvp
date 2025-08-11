@@ -1,6 +1,5 @@
 // frontend/src/pages/HelpCenter.tsx
-// This page provides tutorials, help documentation, and learning resources
-// Like an instruction manual and learning center combined
+// Updated with correct game phases and email contact
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +22,10 @@ import {
   Cog,
   Factory,
   ShoppingCart,
-  CreditCard
+  CreditCard,
+  TrendingUp,
+  Sparkles,
+  Mail
 } from 'lucide-react';
 
 interface HelpTopic {
@@ -34,6 +36,7 @@ interface HelpTopic {
   icon: React.ComponentType<any>;
   content: string[];
   tips?: string[];
+  example?: string;
 }
 
 const HELP_TOPICS: HelpTopic[] = [
@@ -44,17 +47,18 @@ const HELP_TOPICS: HelpTopic[] = [
     category: 'Basics',
     icon: Play,
     content: [
-      'Welcome to RoboStartup AI! This game teaches business and financial concepts through an interactive robotics company simulation.',
-      'You\'ll start with $500,000 in cash and build your robotics empire through smart decisions.',
-      'The game has 5 phases each round: Startup, R&D, Production, Sales, and Investment.',
-      'Your goal is to reach $7 million in total assets or have the highest net worth when the game ends.',
-      'Make decisions about what robots to build, which technologies to research, and how to finance your growth.'
+      'Welcome to RoboStartup AI! You\'re the CEO of a robotics startup, starting with $500,000.',
+      'Your goal: Build a successful robotics company by making smart business decisions.',
+      'Each game has 5 rounds, representing years of your company\'s growth.',
+      'Each round has 5 phases where you make different business decisions.',
+      'Win by reaching $7 million in total value or having the highest net worth when the game ends.'
     ],
     tips: [
-      'Start with simple robots to learn the mechanics',
-      'Always keep some cash for unexpected opportunities',
-      'Pay attention to market conditions when making decisions'
-    ]
+      'Start small and learn from each decision',
+      'Watch your cash - running out means game over!',
+      'Balance risk and reward in your strategies'
+    ],
+    example: 'Example: In Round 1, you might build 2 simple robots for $200,000, sell them for $360,000, making a $160,000 profit!'
   },
   {
     id: 'game-phases',
@@ -63,162 +67,321 @@ const HELP_TOPICS: HelpTopic[] = [
     category: 'Gameplay',
     icon: Target,
     content: [
-      'STARTUP PHASE: Collect your $50,000 round income and plan your strategy.',
-      'R&D PHASE: Invest in new technologies to improve your robots. Success depends on dice rolls.',
-      'PRODUCTION PHASE: Build robots based on market predictions. Choose types and components wisely.',
-      'SALES PHASE: Sell your robots to customers. Prices depend on market demand and robot quality.',
-      'INVESTMENT PHASE: Manage financing through loans, pay debts, and plan for growth.'
+      'ROUND 1 - PROVING YOUR CONCEPT:',
+      '• Bootstrap Phase: Collect $50,000 from friends & family (automatic)',
+      '• R&D Phase: Research technologies to improve your robots',
+      '• Production Phase: Build your first robots (limited capacity)',
+      '• Sales Phase: Sell robots to early customers',
+      '• Growth Phase: Invest in marketing and business development',
+      '',
+      'ROUNDS 2-5 - SCALING YOUR BUSINESS:',
+      '• Funding Phase: Choose how to finance growth (venture capital or loans)',
+      '• R&D Phase: Continue innovating with new technologies',
+      '• Production Phase: Scale up manufacturing (increased capacity)',
+      '• Sales Phase: Sell to growing customer base',
+      '• Growth Phase: Expand market reach and operations'
     ],
     tips: [
-      'Each phase builds on the previous one',
-      'Planning ahead across phases is key to success',
-      'Market conditions can change between rounds'
-    ]
+      'Round 1 is about proving your idea works',
+      'Later rounds focus on scaling and growth',
+      'Each phase affects the next - plan ahead!'
+    ],
+    example: 'Example: In Round 2, you might take $250,000 in VC funding (giving up 20% equity) to build 10 robots instead of just 3!'
+  },
+  {
+    id: 'bootstrap-funding',
+    title: 'Bootstrap & Funding Phases',
+    description: 'Understanding how to finance your startup',
+    category: 'Finance',
+    icon: DollarSign,
+    content: [
+      'BOOTSTRAP (Round 1 Only):',
+      'You automatically receive $50,000 from "friends and family".',
+      'This represents initial seed money to prove your concept.',
+      'No equity given up, no debt incurred - it\'s a gift to get started!',
+      '',
+      'FUNDING (Rounds 2-5):',
+      'VENTURE CAPITAL: Get large amounts of cash by selling company ownership',
+      '• Pros: Big money, no monthly payments',
+      '• Cons: You give up equity (ownership) in your company',
+      '',
+      'BUSINESS LOANS: Borrow money that must be repaid with interest',
+      '• Pros: Keep full ownership of your company',
+      '• Cons: Monthly payments reduce cash flow',
+      '',
+      'SKIP FUNDING: Continue with just your profits',
+      '• Pros: No dilution, no debt',
+      '• Cons: Limited growth potential'
+    ],
+    tips: [
+      'VC funding is great when you need to scale fast',
+      'Loans work well if you have steady revenue',
+      'Don\'t give up too much equity early!'
+    ],
+    example: 'Example: Taking $500,000 from VCs for 30% equity means you now own 70% of your company, but have cash to grow 10x faster!'
   },
   {
     id: 'financial-literacy',
-    title: 'Financial Concepts',
-    description: 'Understanding money, profits, and business finances',
+    title: 'Financial Concepts Explained',
+    description: 'Simple explanations of business finance',
     category: 'Education',
     icon: DollarSign,
     content: [
-      'CASH FLOW: Track money coming in (revenue) and going out (expenses).',
-      'PROFIT: Revenue minus costs. This is how much money you actually make.',
-      'NET WORTH: Total assets (what you own) minus total debts (what you owe).',
-      'DEBT-TO-ASSET RATIO: How much you owe compared to what you own. Lower is usually better.',
-      'ROI (Return on Investment): How much profit you get compared to what you invested.'
+      'CASH: Money you have right now to spend',
+      'Think of it like your wallet - it\'s what you use to buy things.',
+      '',
+      'REVENUE: Money coming IN from selling robots',
+      'If you sell a robot for $180,000, that\'s revenue.',
+      '',
+      'PROFIT: Revenue minus costs (what you actually keep)',
+      'Sell robot for $180,000, cost was $100,000 = $80,000 profit!',
+      '',
+      'EQUITY: How much of the company you own',
+      'Start with 100%. Give VCs 20%, you now have 80%.',
+      '',
+      'NET WORTH: Everything you own minus everything you owe',
+      'Assets ($1M in cash + robots) - Debts ($200k loan) = $800k net worth',
+      '',
+      'BURN RATE: How fast you\'re spending money',
+      'Spending $100,000 per round? That\'s your burn rate.'
     ],
     tips: [
-      'Keep track of your cash flow to avoid running out of money',
-      'Profit is more important than revenue',
-      'Don\'t take on too much debt relative to your assets'
-    ]
+      'Profit matters more than revenue',
+      'Watch your cash - it\'s your lifeline',
+      'Higher net worth = winning position'
+    ],
+    example: 'Example: You have $500,000 cash, own robots worth $300,000, owe $100,000 in loans. Your net worth is $700,000!'
   },
   {
     id: 'robot-production',
     title: 'Robot Production Strategy',
-    description: 'How to decide what robots to build and when',
+    description: 'How to decide what robots to build',
     category: 'Strategy',
     icon: Factory,
     content: [
-      'Different robot types have different costs and profit potential.',
-      'Humanoid robots are expensive but have high profit margins.',
-      'Industrial robots have steady demand from manufacturing companies.',
-      'Service robots are cheaper to make but have lower selling prices.',
-      'Components add cost but increase robot value and market appeal.'
+      'ROBOT TYPES & COSTS:',
+      '• Service Robot: $100,000 (sells for ~$180,000)',
+      '• Mobile Robot: $120,000 (sells for ~$220,000)',
+      '• Industrial Robot: $150,000 (sells for ~$280,000)',
+      '• Humanoid Robot: $200,000 (sells for ~$400,000)',
+      '• Medical Robot: $250,000 (sells for ~$500,000)',
+      '',
+      'PRODUCTION CAPACITY:',
+      'Round 1: Limited to 3-5 robots (proving concept)',
+      'Round 2+: Capacity grows with funding and success',
+      'More cash = ability to build more robots',
+      'Technologies increase your capacity',
+      '',
+      'STRATEGIC CHOICES:',
+      '• Few expensive robots = Higher profit margins',
+      '• Many cheap robots = Market dominance',
+      '• Mixed approach = Balanced risk'
     ],
     tips: [
-      'Match your robot production to market demand',
-      'Higher-end robots need higher-end components',
-      'Don\'t overproduce - you can only sell what customers want'
-    ]
+      'Start with service robots to learn',
+      'Match production to market demand',
+      'Don\'t build more than you can afford!'
+    ],
+    example: 'Example: With $400,000 cash, you could build 4 service robots or 2 humanoid robots. Which strategy fits your plan?'
   },
   {
     id: 'rd-investment',
-    title: 'Research & Development',
-    description: 'When and how to invest in new technologies',
+    title: 'Research & Development (R&D)',
+    description: 'Investing in technology to improve your robots',
     category: 'Strategy',
     icon: Cog,
     content: [
-      'R&D investments improve your robots but success isn\'t guaranteed.',
-      'Advanced investment (150% cost) increases your success probability.',
-      'Technologies provide ongoing benefits for several rounds.',
-      'AI Navigation improves robot efficiency and reduces accidents.',
-      'Battery Optimization extends operational time and reduces power consumption.'
+      'WHY R&D MATTERS:',
+      'Technologies make your robots better and more valuable.',
+      'Better robots = higher selling prices and happier customers.',
+      '',
+      'TECHNOLOGY OPTIONS:',
+      '• Basic Sensors ($50,000): +10% robot value',
+      '• Standard Motors ($75,000): +12% efficiency',
+      '• Simple AI ($100,000): +15% value',
+      '• Advanced Arms ($120,000): +15% capability',
+      '• AI Navigation ($150,000): +20% premium pricing',
+      '',
+      'SUCCESS RATES:',
+      'Beginner Mode: 80% chance of success',
+      'Advanced Mode: 60% chance of success',
+      'Failed R&D still gives you experience!',
+      '',
+      'STRATEGIC TIMING:',
+      'Early R&D = Benefits for more rounds',
+      'Late R&D = Less time to recoup investment'
     ],
     tips: [
-      'Invest in R&D early when you have cash to spare',
-      'Choose technologies that match your robot types',
-      'Advanced investment is worth it for critical technologies'
-    ]
+      'Invest in R&D when you have spare cash',
+      'Multiple technologies stack for bigger benefits',
+      'Failed R&D isn\'t wasted - you learn from it!'
+    ],
+    example: 'Example: Investing $100,000 in Simple AI might fail this round, but if it succeeds, all your robots sell for 15% more!'
+  },
+  {
+    id: 'growth-investments',
+    title: 'Growth Phase Strategies',
+    description: 'How to expand your business reach',
+    category: 'Strategy',
+    icon: TrendingUp,
+    content: [
+      'ROUND 1 GROWTH OPTIONS:',
+      '• Brand Awareness ($25,000): Build market recognition',
+      '• Market Research ($15,000): Understand customers better',
+      '• Partnerships ($30,000): Create distribution channels',
+      '• Skip Growth ($0): Save cash for production',
+      '',
+      'ROUNDS 2-5 GROWTH OPTIONS:',
+      '• Digital Marketing ($75,000): Massive online presence',
+      '• Trade Shows ($50,000): Direct customer acquisition',
+      '• Strategic Partnerships ($100,000): Major market expansion',
+      '• Conservative Growth ($0): Focus on operations',
+      '',
+      'GROWTH EFFECTS:',
+      'Reputation increases = customers trust you more',
+      'Sales boost = robots sell faster and for more',
+      'Market expansion = access to more customers'
+    ],
+    tips: [
+      'Early brand building pays off long-term',
+      'Match growth spending to your cash reserves',
+      'Partnerships can be more valuable than ads'
+    ],
+    example: 'Example: Spending $25,000 on brand awareness in Round 1 might boost all future sales by 10%!'
   },
   {
     id: 'market-analysis',
     title: 'Reading Market Conditions',
-    description: 'How to interpret and respond to market changes',
+    description: 'How to respond to market changes',
     category: 'Strategy',
     icon: Brain,
     content: [
-      'HIGH DEMAND: Great time to sell, premium pricing possible.',
-      'MEDIUM DEMAND: Steady market, balanced approach recommended.',
-      'LOW DEMAND: Focus on efficiency and cost reduction.',
-      'VOLATILITY: How much market conditions change. High volatility means unpredictable swings.',
-      'TRENDS: Long-term directions like "automation growth" or "AI advancement".'
+      'MARKET DEMAND LEVELS:',
+      'HIGH DEMAND (Green): Customers want lots of robots!',
+      '• Build more robots',
+      '• Prices are 30% higher',
+      '• Great time to maximize production',
+      '',
+      'MEDIUM DEMAND (Yellow): Steady, normal market',
+      '• Build moderate amounts',
+      '• Normal pricing',
+      '• Balance production and R&D',
+      '',
+      'LOW DEMAND (Red): Customers aren\'t buying much',
+      '• Build fewer robots',
+      '• Prices are 30% lower',
+      '• Focus on R&D and efficiency',
+      '',
+      'MARKET VOLATILITY:',
+      'Low (0.1-0.3): Predictable, stable conditions',
+      'Medium (0.4-0.6): Some surprises possible',
+      'High (0.7-1.0): Expect rapid changes!'
     ],
     tips: [
-      'Build more robots when demand is high',
-      'Focus on R&D and efficiency when demand is low',
-      'High volatility means be ready for rapid changes'
-    ]
+      'Produce heavily in high demand',
+      'Use low demand for R&D investment',
+      'High volatility = keep cash reserves'
+    ],
+    example: 'Example: High demand with low volatility? Build maximum robots! Low demand with high volatility? Save cash and invest in R&D.'
+  },
+  {
+    id: 'winning-strategies',
+    title: 'How to Win',
+    description: 'Proven strategies for success',
+    category: 'Strategy',
+    icon: Trophy,
+    content: [
+      'EARLY GAME (Rounds 1-2):',
+      '• Prove your concept with small batches',
+      '• Invest in 1-2 key technologies',
+      '• Build cash reserves',
+      '• Establish brand presence',
+      '',
+      'MID GAME (Rounds 3-4):',
+      '• Scale production significantly',
+      '• Take funding to accelerate growth',
+      '• Dominate a robot category',
+      '• Expand market reach',
+      '',
+      'LATE GAME (Round 5):',
+      '• Maximize robot production',
+      '• Sell everything you build',
+      '• Avoid unnecessary spending',
+      '• Sprint to $7 million',
+      '',
+      'WINNING CONDITIONS:',
+      '1. First to $7 million total value wins immediately',
+      '2. Highest net worth at game end wins',
+      '3. In ties, highest cash reserves wins'
+    ],
+    tips: [
+      'Balance growth with stability',
+      'Don\'t neglect any phase',
+      'Adapt strategy based on competition'
+    ],
+    example: 'Example winning path: Round 1-2 build foundation → Round 3-4 scale aggressively → Round 5 maximize value!'
   },
   {
     id: 'multiplayer-tips',
-    title: 'Multiplayer Strategy',
-    description: 'Competing effectively against other players',
+    title: 'Multiplayer Competition',
+    description: 'Competing against other players',
     category: 'Multiplayer',
     icon: Users,
     content: [
-      'Watch what other players are doing and adapt your strategy.',
-      'Don\'t always copy successful players - find your own niche.',
-      'Communication is allowed - consider forming temporary alliances.',
-      'AI opponents have different personalities and strategies.',
-      'The first player to $7 million wins, regardless of round number.'
+      'READING COMPETITORS:',
+      'Watch what others build and sell',
+      'Notice their funding choices',
+      'Adapt your strategy accordingly',
+      '',
+      'COMPETITIVE STRATEGIES:',
+      'DIFFERENTIATION: Build different robot types',
+      'PRICE WAR: Undercut competitors with volume',
+      'PREMIUM: Focus on high-end with better tech',
+      'FIRST MOVER: Dominate a niche early',
+      '',
+      'AI OPPONENT PERSONALITIES:',
+      '• Conservative: Safe, steady growth',
+      '• Aggressive: High risk, high reward',
+      '• Balanced: Mixed strategies',
+      '• Innovative: Heavy R&D focus'
     ],
     tips: [
-      'Specialize in different robot types than your competitors',
-      'Time your big moves when others are struggling',
-      'Don\'t reveal your strategy too early'
-    ]
-  },
-  {
-    id: 'ai-tutor',
-    title: 'Using the AI Tutor',
-    description: 'Getting the most out of personalized learning help',
-    category: 'Learning',
-    icon: Lightbulb,
-    content: [
-      'Click the "AI Help" button whenever you need explanation of business concepts.',
-      'The AI tutor provides personalized explanations based on your current situation.',
-      'Take the quizzes to reinforce your learning and track progress.',
-      'The AI adapts its explanations to your age and experience level.',
-      'Don\'t hesitate to ask for help - that\'s how you learn!'
+      'Don\'t copy failing strategies',
+      'Find market gaps competitors miss',
+      'Time big moves when others are weak'
     ],
-    tips: [
-      'Use AI help when you encounter new terms',
-      'Try to answer quiz questions before looking up answers',
-      'Ask for specific examples related to your current game situation'
-    ]
+    example: 'Example: If everyone builds service robots, pivot to medical robots for less competition and higher margins!'
   }
 ];
 
 const FAQ_ITEMS = [
   {
     question: 'How long does a typical game last?',
-    answer: 'A beginner game (5 rounds) takes about 30-45 minutes. Advanced games (10 rounds) can take 60-90 minutes.'
-  },
-  {
-    question: 'Can I pause and resume a game later?',
-    answer: 'Single-player games can be paused. Multiplayer games continue in real-time, but you can reconnect if disconnected.'
+    answer: 'A beginner game (5 rounds) takes about 20-30 minutes. It\'s designed to fit in a class period or lunch break!'
   },
   {
     question: 'What happens if I run out of money?',
-    answer: 'You can take loans to continue playing. The game tracks your financial health and provides warnings.'
+    answer: 'You can take emergency loans in the funding phase, or sell robots at a discount. The game helps prevent total bankruptcy with warnings.'
   },
   {
-    question: 'How do I invite friends to play?',
-    answer: 'Create a game and share the game code with friends. They can join using the code in the lobby.'
+    question: 'How many robots can I build per round?',
+    answer: 'Round 1: 3-5 robots (proving concept). Round 2+: Capacity grows with your success, funding, and technologies. Rich companies can build 20+ robots!'
   },
   {
-    question: 'Are there different difficulty levels?',
-    answer: 'Yes! Beginner mode (ages 12-15) has simpler mechanics. Advanced mode (ages 16+) includes complex financial management.'
+    question: 'What\'s the difference between equity and loans?',
+    answer: 'Equity = selling ownership (no payments but you own less). Loans = borrowing money (keep ownership but must repay with interest).'
   },
   {
-    question: 'How does the AI opponent work?',
-    answer: 'AI opponents have different personalities and strategies. They make realistic business decisions to provide competition.'
+    question: 'Can I play against my friends?',
+    answer: 'Yes! Create a game and share the code. Up to 4 human players can compete, with AI filling empty slots.'
   },
   {
-    question: 'Can teachers use this in classrooms?',
-    answer: 'Absolutely! The game includes progress tracking and educational reports perfect for classroom use.'
+    question: 'How does market demand affect my strategy?',
+    answer: 'High demand = build more robots at higher prices. Low demand = focus on R&D and efficiency. Always match production to demand!'
+  },
+  {
+    question: 'Is there a way to practice without competition?',
+    answer: 'Play against AI opponents first to learn. They have different difficulty levels and strategies to help you improve.'
   }
 ];
 
@@ -245,6 +408,11 @@ const HelpCenter: React.FC = () => {
     item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.answer.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Handle contact support - UPDATED WITH EMAIL
+  const handleContactSupport = () => {
+    window.location.href = 'mailto:tjohn@levelupstem.academy?subject=RoboStartup AI Support Request';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
@@ -331,11 +499,21 @@ const HelpCenter: React.FC = () => {
 
                     <div className="space-y-4 mb-6">
                       {topic.content.map((paragraph, index) => (
-                        <p key={index} className="text-gray-200 leading-relaxed">
+                        <p key={index} className="text-gray-200 leading-relaxed whitespace-pre-line">
                           {paragraph}
                         </p>
                       ))}
                     </div>
+
+                    {topic.example && (
+                      <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+                        <h3 className="text-blue-400 font-semibold mb-2 flex items-center gap-2">
+                          <Sparkles size={18} />
+                          Example
+                        </h3>
+                        <p className="text-blue-100">{topic.example}</p>
+                      </div>
+                    )}
 
                     {topic.tips && (
                       <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
@@ -448,24 +626,24 @@ const HelpCenter: React.FC = () => {
           <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-6">
             <h3 className="text-green-400 font-semibold mb-4 flex items-center gap-2">
               <Play className="text-green-400" size={20} />
-              Quick Start
+              Quick Start Guide
             </h3>
             <div className="space-y-3 text-sm">
               <div className="flex gap-2">
                 <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
-                <span className="text-green-100">Create your first game</span>
+                <span className="text-green-100">Create or join a game</span>
               </div>
               <div className="flex gap-2">
                 <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
-                <span className="text-green-100">Learn the 5 game phases</span>
+                <span className="text-green-100">Start with $500,000 cash</span>
               </div>
               <div className="flex gap-2">
                 <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
-                <span className="text-green-100">Use AI tutor when stuck</span>
+                <span className="text-green-100">Build and sell robots</span>
               </div>
               <div className="flex gap-2">
                 <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</div>
-                <span className="text-green-100">Track your progress</span>
+                <span className="text-green-100">Reach $7 million to win!</span>
               </div>
             </div>
             <button
@@ -507,15 +685,22 @@ const HelpCenter: React.FC = () => {
             </div>
           </div>
 
-          {/* Contact Support */}
+          {/* Contact Support - UPDATED */}
           <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-6">
             <h3 className="text-purple-400 font-semibold mb-4">Need More Help?</h3>
             <p className="text-purple-200 text-sm mb-4">
-              Can't find what you're looking for? Our AI tutor is available in-game for personalized help.
+              Can't find what you're looking for? Contact us for personalized support.
             </p>
-            <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-colors">
-              Contact Support
+            <button 
+              onClick={handleContactSupport}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Mail size={16} />
+              Email Support
             </button>
+            <p className="text-purple-300 text-xs mt-2 text-center">
+              tjohn@levelupstem.academy
+            </p>
           </div>
         </div>
       </div>
@@ -524,46 +709,3 @@ const HelpCenter: React.FC = () => {
 };
 
 export default HelpCenter;
-
-/**
- * EXPLANATION FOR BEGINNERS:
- * 
- * This HelpCenter component is like a comprehensive instruction manual and
- * learning resource center. Here's what each section provides:
- * 
- * 1. SEARCH AND FILTER:
- *    - Students can search for specific topics or questions
- *    - Filter by category (Basics, Gameplay, Strategy, etc.)
- *    - Real-time filtering as they type
- * 
- * 2. HELP TOPICS:
- *    - Detailed explanations of game mechanics
- *    - Business concept explanations
- *    - Strategic guidance and tips
- *    - Step-by-step instructions
- * 
- * 3. FAQ SECTION:
- *    - Common questions and answers
- *    - Expandable/collapsible format
- *    - Covers technical and gameplay issues
- * 
- * 4. QUICK START GUIDE:
- *    - Step-by-step onboarding
- *    - Essential concepts for new players
- *    - Direct links to start playing
- * 
- * 5. LEARNING RESOURCES:
- *    - Links to additional educational content
- *    - Progress tracking access
- *    - Video tutorials and glossaries
- * 
- * EDUCATIONAL VALUE:
- * - Self-service learning support
- * - Comprehensive coverage of business concepts
- * - Multiple learning formats (text, tips, examples)
- * - Encourages independent problem-solving
- * - Scaffolded learning from basic to advanced
- * 
- * This creates a comprehensive support system where students can find
- * answers to questions and deepen their understanding of business concepts.
- */

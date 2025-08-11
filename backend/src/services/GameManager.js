@@ -1377,21 +1377,27 @@ class GameManager extends EventEmitter {
    */
   getProductionCapacity(player, difficulty, currentRound = 1) {
     // Round 1: Limited capacity to prove concept
-    let capacity = 3;
+    let capacity = 5;
   
   // Scale significantly with rounds
-    capacity += (currentRound - 1) * 3; // +3 per round
+    if (currentRound === 1) {
+	  capacity = 5; // Round 1: Can build up to 5 robots
+	} else {
+	  capacity = 10 + ((currentRound - 2) * 5); // Round 2: 10, Round 3: 15, etc.
+	}
   
   // Scale with cash reserves (more aggressive)
 	const playerCash = player.cash || 0;
-	if (playerCash >= 500000) capacity += 2;
-	if (playerCash >= 1000000) capacity += 3;
-	if (playerCash >= 2000000) capacity += 4;
-	if (playerCash >= 5000000) capacity += 5;
+	if (playerCash >= 200000) capacity += 2;  // Lower threshold
+	if (playerCash >= 400000) capacity += 3;  // More gradual scaling
+	if (playerCash >= 600000) capacity += 4;
+	if (playerCash >= 800000) capacity += 5;
+	if (playerCash >= 1000000) capacity += 7;
+	if (playerCash >= 2000000) capacity += 10;
   
   // Scale with funding rounds
 	const fundingRounds = player.fundingRounds?.length || 0;
-	capacity += fundingRounds * 2;
+	capacity += fundingRounds * 3;
   
   // Scale with technologies (more significant bonus)
 	const techCount = player.technologies?.length || 0;
@@ -1422,15 +1428,15 @@ class GameManager extends EventEmitter {
   // Difficulty adjustments
 	switch (difficulty) {
       case 'beginner': 
-        capacity = Math.floor(capacity * 1.3); // 30% bonus
+        capacity = Math.floor(capacity * 1.2); // 20% bonus for beginners
         break;
       case 'advanced': 
-        capacity = Math.floor(capacity * 0.8); // 20% penalty
+        capacity = Math.floor(capacity * 0.9); // 10% penalty for advanced
         break;
 	}
   
   // Minimum of 5 after round 1, maximum of 50 for balance
-   const minCapacity = currentRound === 1 ? 3 : 5;
+   const minCapacity = currentRound === 1 ? 5 : 10;
    const maxCapacity = 50;
   
    const finalCapacity = Math.max(minCapacity, Math.min(maxCapacity, capacity));
