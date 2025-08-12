@@ -355,6 +355,13 @@ class GameManager extends EventEmitter {
     const playerCash = currentPlayer.cash;
     const phase = game.currentPhase;
     
+	const context = this.getCompetitiveContext(game, currentPlayer);
+    logger.info(`📊 ${currentPlayer.name} - Rank: ${context.myRank}/${context.totalPlayers}, Gap: $${context.gapToLeader}`);
+  
+  // ADD THIS: Adjust aggression based on position
+	const isAggressive = currentPlayer.aiPersonality?.riskTolerance === 'very_high' || context.shouldCatchUp;
+	const isConservative = currentPlayer.aiPersonality?.riskTolerance === 'low' && !context.shouldCatchUp;
+	
     const affordableOptions = this.getAffordableOptions(game, currentPlayer);
     
     if (affordableOptions.length === 0 && phase !== 'bootstrap' && phase !== 'funding') {
@@ -372,22 +379,29 @@ class GameManager extends EventEmitter {
         
       case 'funding':
         // Round 2+ only: funding decision
-        const fundingChoice = this.makeAIFundingDecision(currentPlayer);
+        const fundingChoice = this.makeAIFundingDecision(currentPlayer, context);
         aiMove = {
           action: 'select_funding',
           data: fundingChoice
-        };
+		};
         break;
         
       case 'r&d':
-        const cheapestTech = affordableOptions.find(opt => opt.type === 'technology');
-        if (cheapestTech) {
+        const shouldInvestInRD = context.isBehind || game.currentRound <= 2;
+        const techOptions = affordableOptions.filter(opt => opt.type === 'technology');
+      
+        if (shouldInvestInRD && techOptions.length > 0) {
+        // Pick better tech if behind
+          const techChoice = context.shouldCatchUp 
+            ? techOptions[techOptions.length - 1] // Most expensive
+            : techOptions[0]; // Cheapest
+          
           aiMove = {
             action: 'invest_r&d',
-            data: { technology: cheapestTech.name }
+            data: { technology: techChoice.name }
           };
         } else {
-          aiMove = { action: 'skip_r&d', data: { reason: 'insufficient_funds' } };
+          aiMove = { action: 'skip_r&d', data: { reason: 'strategic_choice' } };
         }
         break;
         
@@ -395,8 +409,36 @@ class GameManager extends EventEmitter {
         const affordableRobot = affordableOptions.find(opt => opt.type === 'robot');
         if (affordableRobot) {
           const maxQuantity = Math.floor(playerCash / affordableRobot.cost);
-          const quantity = Math.min(maxQuantity, 2);
-          
+        
+        // COMPETITIVE SCALING
+          let targetQuantity = 2; // Default
+        
+          if (context.myRank === 1) {
+          // Leader: maintain advantage
+            targetQuantity = Math.min(maxQuantity, 5);
+          } else if (context.shouldCatchUp) {
+          // Behind: be aggressive
+            targetQuantity = Math.min(maxQuantity, 8);
+          } else {
+          // Middle pack: moderate
+            targetQuantity = Math.min(maxQuantity, 4);
+          }
+        
+        // Scale with rounds
+          targetQuantity = Math.floor(targetQuantity * (1 + (game.currentRound - 1) * 0.3));
+        
+        // Market adjustment
+          if (game.marketConditions.demand === 'high') {
+            targetQuantity = Math.floor(targetQuantity * 1.5);
+          } else if (game.marketConditions.demand === 'low') {
+            targetQuantity = Math.floor(targetQuantity * 0.6);
+          }
+        
+        // Keep minimum production
+          const quantity = Math.max(2, Math.min(targetQuantity, maxQuantity));
+        
+          logger.info(`🏭 ${currentPlayer.name} plans to build ${quantity} robots (Rank: ${context.myRank})`);
+        
           aiMove = {
             action: 'build_robots',
             data: {
@@ -413,11 +455,15 @@ class GameManager extends EventEmitter {
       case 'sales':
         const unsoldRobots = currentPlayer.robots.filter(r => !r.sold);
         if (unsoldRobots.length > 0) {
+          const sellQuantity = context.shouldCatchUp 
+            ? unsoldRobots.length // Sell all
+            : Math.min(3, unsoldRobots.length); // Sell some
+          
           aiMove = {
             action: 'sell_robots',
             data: { 
-              robotIds: unsoldRobots.slice(0, 3).map(r => r.id),
-              quantity: Math.min(3, unsoldRobots.length)
+              robotIds: unsoldRobots.slice(0, sellQuantity).map(r => r.id),
+              quantity: sellQuantity
             }
           };
         } else {
@@ -427,7 +473,7 @@ class GameManager extends EventEmitter {
         
       case 'growth':
         // NEW: AI growth investment logic
-        const growthChoice = this.makeAIGrowthDecision(game, currentPlayer);
+        const growthChoice = this.makeAIGrowthDecision(game, currentPlayer, context);
         aiMove = {
           action: 'invest_marketing',
           data: growthChoice
@@ -445,64 +491,79 @@ class GameManager extends EventEmitter {
   /**
    * Make AI funding decision for rounds 2+
    */
-  makeAIFundingDecision(player) {
+  makeAIFundingDecision(player, context = null) {
     const currentEquity = player.equity || 100;
     const cash = player.cash;
-    
-    // AI personality affects funding preference
+    const round = game.currentRound;
+  
     const personality = player.aiPersonality;
-    const isAggressive = personality && personality.riskTolerance === 'very_high';
-    const isConservative = personality && personality.riskTolerance === 'low';
-    
-    // Conservative AI skips funding if has enough cash
-    if (isConservative && cash > 300000) {
+    const isAggressive = personality?.riskTolerance === 'very_high';
+    const isConservative = personality?.riskTolerance === 'low';
+  
+  // USE THE CONTEXT PARAMETER instead of calculating locally
+	const isBehind = context ? context.isBehind : false;
+	const shouldCatchUp = context ? context.shouldCatchUp : false;
+	const roundsRemaining = context ? context.roundsRemaining : 3;
+
+  
+  // More aggressive funding if behind
+    if (shouldCatchUp && currentEquity > 60) {
+      // Determine round from context (rounds remaining tells us current round)
+      const estimatedRound = 5 - roundsRemaining; // Assuming 5 round game
       return {
-        fundingType: 'skip'
+        fundingType: 'equity',
+        amount: estimatedRound >= 3 ? 750000 : 500000,
+        equityGiven: estimatedRound >= 3 ? 35 : 25,
+        investorName: `Series ${estimatedRound >= 3 ? 'B' : 'A'}`
       };
     }
-    
-    // Aggressive AI takes bigger funding rounds
-    if (isAggressive && currentEquity > 70) {
+	
+	
+	
+	// Conservative AI only skips if NOT behind
+	if (isConservative && cash > 300000 && !isBehind) {
+      return { fundingType: 'skip' };
+	}
+	
+	
+  // Normal funding decisions - UPDATED THRESHOLDS
+    if ((isAggressive || isBehind) && currentEquity > 70) {
       return {
         fundingType: 'equity',
         amount: 500000,
         equityGiven: 30,
-        investorName: 'Series B'
+        investorName: 'Growth Round'
       };
-    }
-    
-    // Normal AI logic
-    if (cash < 200000 && currentEquity > 80) {
-      // Need money and have equity to spare
+    } else if (!isConservative && cash < 800000 && currentEquity > 75) {
+    // Take funding if cash is below $800k (not $300k)
       return {
         fundingType: 'equity',
-        amount: 250000,
+        amount: 400000,
         equityGiven: 20,
         investorName: 'Series A'
       };
-    } else if (cash < 150000 && currentEquity > 60) {
-      // Getting desperate but still have control
+    } else if (cash < 500000 && currentEquity > 60) {
       return {
         fundingType: 'equity',
-        amount: 100000,
-        equityGiven: 10,
-        investorName: 'Seed Extension'
+        amount: 300000,
+        equityGiven: 15,
+        investorName: 'Bridge Round'
       };
-    } else if (cash < 100000 && player.loans.length === 0) {
-      // Low on cash and equity, take a loan
+    } else if (cash < 300000) {
+    // Emergency funding
       return {
         fundingType: 'debt',
         amount: 200000,
         interestRate: 0.08,
         termRounds: 5
       };
-    } else {
-      // Skip funding this round
-      return {
-        fundingType: 'skip'
-      };
     }
+  
+  // Only skip if really ahead
+    return { fundingType: 'skip' };
   }
+    
+  
 
   /**
    * NEW: makeAIGrowthDecision - AI logic for growth phase
@@ -589,6 +650,39 @@ class GameManager extends EventEmitter {
     }
     
     return options;
+  }
+  
+  /**
+ * Get competitive context - Make AI aware of their position
+ */
+  getCompetitiveContext(game, player) {
+	const players = game.players;
+	  
+	  // Calculate rankings based on net worth
+	const rankings = players
+	  .map(p => ({
+		player: p,
+		netWorth: this.calculatePlayerNetWorth(p),
+		cash: p.cash,
+		robots: p.robots.filter(r => !r.sold).length,
+		techCount: p.technologies.length
+	  }))
+	  .sort((a, b) => b.netWorth - a.netWorth);
+	  
+	const myRank = rankings.findIndex(r => r.player.id === player.id) + 1;
+	const leader = rankings[0];
+	const myStats = rankings.find(r => r.player.id === player.id);
+	const gap = leader.netWorth - myStats.netWorth;
+	  
+	return {
+	  myRank,
+	  totalPlayers: players.length,
+	  isBehind: myRank > 1,
+	  gapToLeader: gap,
+	  leaderCash: leader.cash,
+      shouldCatchUp: gap > 500000, // More than $500k behind
+	  roundsRemaining: game.gameSettings.maxRounds - game.currentRound
+	 };
   }
 
   /**
@@ -1814,17 +1908,26 @@ class GameManager extends EventEmitter {
     
     switch (phase) {
       case 'r&d':
-        // Try the cheapest technology available
-        const cheapTech = this.getCheapestTechnology(playerCash);
-        if (cheapTech) {
-          return {
-            action: 'invest_r&d',
-            data: {
-              technology: cheapTech.name
-            }
-          };
+		const technologies = this.getAffordableTechnologies(playerCash);
+  
+  // Prioritize R&D in early rounds and low demand
+		const shouldInvestHeavily = 
+		  game.currentRound <= 2 || 
+          game.marketConditions.demand === 'low' ||
+		  currentPlayer.technologies.length < 2;
+  
+		if (shouldInvestHeavily && technologies.length > 0) {
+    // Pick best technology, not cheapest
+          const bestTech = technologies.sort((a, b) => b.cost - a.cost)[0];
+    
+		  if (playerCash >= bestTech.cost * 1.5) { // Keep 50% cash buffer
+			aiMove = {
+			  action: 'invest_r&d',
+			  data: { technology: bestTech.name }
+			};
+		  }
         }
-        break;
+		break;
         
       case 'production':
         // Try building just 1 of the cheapest robot type
