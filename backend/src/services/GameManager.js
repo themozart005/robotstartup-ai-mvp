@@ -379,11 +379,25 @@ class GameManager extends EventEmitter {
         
       case 'funding':
         // Round 2+ only: funding decision
-        const fundingChoice = this.makeAIFundingDecision(currentPlayer, context);
-        aiMove = {
-          action: 'select_funding',
-          data: fundingChoice
-		};
+        if (context.myRank > 1) {
+		  const aggressiveFunding = {
+            fundingType: 'equity',
+            amount: game.currentRound >= 3 ? 750000 : 500000,
+            equityGiven: game.currentRound >= 3 ? 30 : 20,
+			investorName: `Aggressive Series ${game.currentRound >= 3 ? 'B' : 'A'}`
+		  };
+		  logger.info(`💰 ${currentPlayer.name} taking aggressive funding (Rank: ${context.myRank})`);
+		  aiMove = {
+            action: 'select_funding',
+            data: aggressiveFunding
+		  };
+		} else {
+		  const fundingChoice = this.makeAIFundingDecision(currentPlayer, context);
+          aiMove = {
+            action: 'select_funding',
+            data: fundingChoice
+		  };
+		}
         break;
         
       case 'r&d':
@@ -409,35 +423,50 @@ class GameManager extends EventEmitter {
         const affordableRobot = affordableOptions.find(opt => opt.type === 'robot');
         if (affordableRobot) {
           const maxQuantity = Math.floor(playerCash / affordableRobot.cost);
+		  const capacity = this.getProductionCapacity(currentPlayer, game.gameSettings.difficulty, game.currentRound);
+        // ULTRA AGGRESSIVE SCALING
+          let targetQuantity; // Default
         
-        // COMPETITIVE SCALING
-          let targetQuantity = 2; // Default
-        
+		// Base quantity on round AND competitive position
+		  const baseByRound = game.currentRound * 4; // 4, 8, 12, 16, 20
           if (context.myRank === 1) {
-          // Leader: maintain advantage
-            targetQuantity = Math.min(maxQuantity, 5);
+          // Leader: maintain dominance
+            targetQuantity = Math.floor(baseByRound * 0.8);
           } else if (context.shouldCatchUp) {
-          // Behind: be aggressive
-            targetQuantity = Math.min(maxQuantity, 8);
+          // Behind: be aggressive/Go crazy
+            targetQuantity = Math.floor(baseByRound * 1.5);
+			logger.info(`🚨 ${currentPlayer.name} PANIC MODE - Building ${targetQuantity} robots!`);
           } else {
           // Middle pack: moderate
-            targetQuantity = Math.min(maxQuantity, 4);
+            targetQuantity = baseByRound;
           }
         
         // Scale with rounds
-          targetQuantity = Math.floor(targetQuantity * (1 + (game.currentRound - 1) * 0.3));
+         // targetQuantity = Math.floor(targetQuantity * (1 + (game.currentRound - 1) * 0.3));
         
         // Market adjustment
           if (game.marketConditions.demand === 'high') {
             targetQuantity = Math.floor(targetQuantity * 1.5);
           } else if (game.marketConditions.demand === 'low') {
-            targetQuantity = Math.floor(targetQuantity * 0.6);
+            targetQuantity = Math.floor(targetQuantity * 0.7);
           }
         
-        // Keep minimum production
-          const quantity = Math.max(2, Math.min(targetQuantity, maxQuantity));
+        // Use most of available cash (80% instead of keeping reserves)
+		  const cashBasedLimit = Math.floor((playerCash * 0.8) / affordableRobot.cost);
         
-          logger.info(`🏭 ${currentPlayer.name} plans to build ${quantity} robots (Rank: ${context.myRank})`);
+		// Final quantity
+		  const quantity = Math.min(
+			targetQuantity,
+			cashBasedLimit,
+			capacity,
+			20 // Hard cap for balance
+		  );
+          // MINIMUM production increases each round
+		  const minProduction = Math.min(game.currentRound * 2, 8); // 2, 4, 6, 8, 8
+    
+          const finalQuantity = Math.max(minProduction, quantity);
+		  
+		  logger.info(`🏭 ${currentPlayer.name} plans to build ${quantity} robots (Rank: ${context.myRank})`);
         
           aiMove = {
             action: 'build_robots',
@@ -455,10 +484,16 @@ class GameManager extends EventEmitter {
       case 'sales':
         const unsoldRobots = currentPlayer.robots.filter(r => !r.sold);
         if (unsoldRobots.length > 0) {
-          const sellQuantity = context.shouldCatchUp 
+		  // ALWAYS sell all in high demand
+		  const shouldSellAll = 
+            game.marketConditions.demand === 'high' ||
+			context.shouldCatchUp ||
+			game.currentRound >= 4; // Final rounds
+			
+          const sellQuantity = shouldSellAll 
             ? unsoldRobots.length // Sell all
-            : Math.min(3, unsoldRobots.length); // Sell some
-          
+            : Math.max(3, Math.floor(unsoldRobots.length * 0.7)); // Sell some
+          logger.info(`💰 ${currentPlayer.name} selling ${sellQuantity}/${unsoldRobots.length} robots`);
           aiMove = {
             action: 'sell_robots',
             data: { 
@@ -684,7 +719,39 @@ class GameManager extends EventEmitter {
 	  roundsRemaining: game.gameSettings.maxRounds - game.currentRound
 	 };
   }
-
+  
+  trackHumanDominance(game) {
+    const humanPlayer = game.players.find(p => p.type === 'human');
+    if (!humanPlayer) return null;
+  
+    const humanNetWorth = this.calculatePlayerNetWorth(humanPlayer);
+    const humanRobots = humanPlayer.robots.length;
+  
+  // Calculate average AI performance
+    const aiPlayers = game.players.filter(p => p.type === 'ai');
+    const avgAINetWorth = aiPlayers.reduce((sum, p) => 
+      sum + this.calculatePlayerNetWorth(p), 0) / aiPlayers.length;
+  
+    const dominanceRatio = humanNetWorth / avgAINetWorth;
+  
+    if (dominanceRatio > 1.5) {
+      logger.warn(`⚠️ Human player dominating with ${dominanceRatio}x AI average!`);
+    
+    // Make all AI players more aggressive
+      aiPlayers.forEach(ai => {
+        ai.panicMode = true;
+        ai.targetProduction = humanRobots * 1.2; // Try to beat human production
+      });
+    }
+  
+    return {
+      humanDominating: dominanceRatio > 1.5,
+      dominanceRatio,
+      humanRobotCount: humanRobots,
+      humanNetWorth
+    };
+  }
+  
   /**
    * Process a player move - UPDATED for new phases
    */
