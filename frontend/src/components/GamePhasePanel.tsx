@@ -423,8 +423,48 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
     }, 0);
     const totalCost = selectedRobotType ? (selectedRobotType.baseCost + componentCost) * quantity : 0;
 
-    const maxProduction = 3; // Simplified
-    const canProduce = player.robotsBuiltThisRound + quantity <= maxProduction;
+    const calculateMaxProduction = () => {
+    // Get capacity from player if it exists (sent from backend)
+     if (player.productionCapacity) {
+       return player.productionCapacity;
+	 }
+    
+    // Otherwise calculate it on frontend
+     let capacity = currentRound === 1 ? 5 : 10 + ((currentRound - 2) * 5);
+    
+    // Scale with cash
+     const playerCash = player.cash || 0;
+     if (playerCash >= 200000) capacity += 2;
+     if (playerCash >= 400000) capacity += 3;
+     if (playerCash >= 600000) capacity += 4;
+     if (playerCash >= 800000) capacity += 5;
+     if (playerCash >= 1000000) capacity += 7;
+    
+    // Scale with technologies
+     const techCount = player.technologies?.length || 0;
+     capacity += techCount * 2;
+    
+    // Scale with funding rounds
+     const fundingRounds = player.fundingRounds?.length || 0;
+     capacity += fundingRounds * 3;
+    
+    // Difficulty adjustment
+     if (gameSettings.difficulty === 'beginner') {
+       capacity = Math.floor(capacity * 1.2);
+     } else if (gameSettings.difficulty === 'advanced') {
+       capacity = Math.floor(capacity * 0.9);
+     }
+    
+    // Set minimums
+     const minCapacity = currentRound === 1 ? 5 : 15;
+     const maxCapacity = 100;
+    
+     return Math.max(minCapacity, Math.min(maxCapacity, capacity));
+    };
+	
+	const maxProduction = calculateMaxProduction();
+	const canProduce = (player.robotsBuiltThisRound || 0) + quantity <= maxProduction;
+	const robotsBuilt = player.robotsBuiltThisRound || 0;
 
     return (
       <div className="space-y-4">

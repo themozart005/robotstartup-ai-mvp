@@ -2148,18 +2148,27 @@ class GameManager extends EventEmitter {
    * Broadcast game state to all players
    */
   broadcastGameState(gameId, game) {
-    if (this.io) {
+  // Calculate and attach production capacity for each player
+    game.players.forEach(player => {
+      player.productionCapacity = this.getProductionCapacity(
+        player, 
+        game.gameSettings.difficulty, 
+        game.currentRound
+      );
+    });
+  
+	if (this.io) {
       logger.info(`📡 Broadcasting game state to all players in game ${gameId}`);
       this.io.to(gameId).emit('game-updated', game);
-    } else {
+	} else {
       logger.warn('⚠️ Cannot broadcast - Socket.IO not initialized');
     }
-    
-    // Still emit the event for other parts of the system
-    this.emit('gameStateUpdate', {
+  
+  // Still emit the event for other parts of the system
+	this.emit('gameStateUpdate', {
       gameId: gameId,
       gameState: game
-    });
+	});
   }
 
   /**
