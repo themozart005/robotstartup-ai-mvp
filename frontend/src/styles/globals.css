@@ -233,6 +233,250 @@ body {
   }
 }
 
+/* ========================================
+   GROWTH PHASE BUTTON VISIBILITY FIXES
+   Fixes button cutoff on standard desktop resolutions
+   Updated to match pink/orange theme
+   ======================================== */
+
+/* Ensure game containers allow scrolling */
+.game-container,
+.phase-panel-container,
+.game-board > div {
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Growth phase container specific fixes */
+.growth-phase-container {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make growth action buttons sticky at bottom - Pink/Orange theme */
+.growth-phase-container .action-buttons {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(to top, 
+    rgba(219, 39, 119, 1) 0%,      /* Pink-600 solid */
+    rgba(219, 39, 119, 0.95) 25%,
+    rgba(219, 39, 119, 0.8) 50%,
+    rgba(219, 39, 119, 0.5) 75%,
+    transparent 100%);
+  padding-top: 1rem;
+  padding-bottom: 0.5rem;
+  margin-top: auto;
+  z-index: 20;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+/* Alternative gradient for better visibility */
+@supports (backdrop-filter: blur(10px)) {
+  .growth-phase-container .action-buttons {
+    background: linear-gradient(to top,
+      rgba(30, 58, 138, 0.95) 0%,    /* Dark background with blur */
+      rgba(30, 58, 138, 0.7) 50%,
+      transparent 100%);
+    backdrop-filter: blur(10px);
+  }
+}
+
+/* Fix for standard desktop resolutions (1920x1080 and below) */
+@media screen and (max-height: 1080px) {
+  /* Reduce spacing to fit content */
+  .phase-panel-container {
+    padding: 0.75rem !important;
+  }
+  
+  .game-board {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Compact spacing for smaller viewports */
+  .mb-4 {
+    margin-bottom: 0.75rem !important;
+  }
+  
+  .p-4 {
+    padding: 0.75rem !important;
+  }
+  
+  .py-4 {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+  
+  .py-3 {
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+  
+  /* Smaller text on compact screens */
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-lg {
+    font-size: 1rem !important;
+  }
+  
+  /* Ensure phase content doesn't overflow */
+  .growth-phase-container,
+  [data-phase="growth"] {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* More solid background for action buttons on smaller screens */
+  .growth-phase-container .action-buttons {
+    background: linear-gradient(to top,
+      rgba(30, 58, 138, 1) 0%,      /* Solid background */
+      rgba(30, 58, 138, 0.98) 40%,
+      rgba(30, 58, 138, 0.9) 70%,
+      transparent 100%);
+    padding: 0.75rem;
+  }
+  
+  /* Hide less critical elements */
+  .competitor-activity:not(.critical),
+  .flavor-text,
+  .bg-pink-500\/20:not(.critical) {
+    display: none;
+  }
+}
+
+/* Specific fix for MacBook resolutions */
+@media screen and (max-height: 900px) {
+  .phase-panel-container {
+    padding: 0.5rem !important;
+    max-height: calc(100vh - 120px);
+  }
+  
+  /* Even more compact spacing */
+  .space-y-4 > * + * {
+    margin-top: 0.5rem !important;
+  }
+  
+  .mb-3, .mb-4, .mb-2 {
+    margin-bottom: 0.375rem !important;
+  }
+  
+  /* Smaller buttons */
+  .btn-primary, .btn-secondary, .btn-ghost,
+  .growth-phase-container button {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  /* Very compact growth container */
+  .growth-phase-container {
+    max-height: calc(100vh - 140px);
+  }
+  
+  /* Hide strategy info box on very small heights */
+  .bg-pink-500\/20 {
+    display: none;
+  }
+}
+
+/* Ensure growth phase buttons are ALWAYS visible */
+.growth-phase-container button,
+[data-phase="growth"] button,
+button[class*="growth"],
+button:has(.growth-action),
+button:contains("Choose Growth Strategy") {
+  position: relative;
+  z-index: 10;
+  min-height: 40px;
+}
+
+/* Compact viewport mode - auto-applied via JS */
+body.compact-viewport {
+  font-size: 14px; /* Slightly smaller base font */
+}
+
+body.compact-viewport .game-board {
+  padding: 0.5rem;
+}
+
+body.compact-viewport .player-card {
+  padding: 0.5rem;
+  min-height: auto;
+}
+
+body.compact-viewport .text-lg {
+  font-size: 1rem !important;
+}
+
+body.compact-viewport .text-xl {
+  font-size: 1.125rem !important;
+}
+
+body.compact-viewport .py-3 {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+body.compact-viewport .py-4 {
+  padding-top: 0.625rem !important;
+  padding-bottom: 0.625rem !important;
+}
+
+/* Ensure modals work on all screen heights */
+.modal-overlay,
+[role="dialog"] {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+/* Growth Modal specific fixes */
+.growth-modal,
+[class*="GrowthPhaseModal"],
+[class*="GrowthModal"] {
+  max-height: min(85vh, 700px);
+  overflow-y: auto;
+}
+
+/* Force visibility of critical growth buttons with better selectors */
+button[onClick*="Growth"],
+button[onClick*="growth"],
+.growth-phase-container .action-buttons button {
+  min-height: 44px; /* Ensure clickable */
+  position: relative;
+  z-index: 100;
+}
+
+/* Debug helper - remove after testing */
+.debug-viewport::after {
+  content: attr(data-viewport);
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
 /* Print styles */
 @media print {
   .no-print {
@@ -332,4 +576,8 @@ body {
 
 .phase-investment {
   @apply bg-yellow-500/20 text-yellow-300 border border-yellow-500/30;
+}
+
+.phase-growth {
+  @apply bg-pink-500/20 text-pink-300 border border-pink-500/30;
 }

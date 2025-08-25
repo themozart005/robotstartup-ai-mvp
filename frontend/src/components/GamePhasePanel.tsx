@@ -762,9 +762,9 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
   // Growth Phase - replaces investment phase
   const renderGrowthPhase = () => {
     return (
-      <div className="space-y-4">
-        <div className="bg-gradient-to-r from-pink-600 to-orange-600 p-4 rounded-lg">
-          <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
+      <div className="growth-phase-container space-y-4"> {/* ADDED: growth-phase-container class */}
+		<div className="bg-gradient-to-r from-pink-600 to-orange-600 p-4 rounded-lg">
+		  <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
             <BarChart3 size={20} />
             Growth Phase - {currentRound === 1 ? 'Build Foundation' : 'Scale Operations'}
           </h3>
@@ -774,7 +774,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
               : 'Scale your marketing efforts and expand your market reach.'
             }
           </p>
-          
+        
           <div className="bg-pink-600/30 rounded-lg p-3 mb-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -799,8 +799,9 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
               </div>
             </div>
           </div>
-          
-          <div className="flex gap-3">
+        
+          {/* ADDED: Wrapper div with action-buttons class */}
+          <div className="action-buttons flex gap-3">
             <button
               onClick={() => setShowGrowthModal(true)}
               disabled={!canMakeMove}
@@ -812,9 +813,23 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             >
               Choose Growth Strategy
             </button>
+          
+            {/* OPTIONAL: Add a skip button if you want users to be able to skip */}
+            <button
+              onClick={() => handleSkipPhase && handleSkipPhase()}
+              disabled={!canMakeMove}
+              className={`py-3 px-4 rounded-lg font-semibold transition-all ${
+                canMakeMove
+                  ? 'bg-pink-800/50 hover:bg-pink-800/70 text-pink-100 border border-pink-500/30'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Skip
+            </button>
           </div>
         </div>
-
+      
+        {/* Your existing strategy info box */}
         <div className="bg-pink-500/20 border border-pink-500/30 rounded-lg p-3">
           <h4 className="text-white font-medium mb-2">📈 Growth Strategy</h4>
           <ul className="text-pink-200 text-sm space-y-1">
@@ -836,6 +851,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
       </div>
     );
   };
+
 
   // Main render logic with proper phase handling
   const renderPhaseContent = () => {
