@@ -1,5 +1,5 @@
 // frontend/src/components/AITutorModal.tsx
-// ENHANCED VERSION - With visual funding education, interactive examples, and phase-specific help
+// FIXED VERSION - With null safety checks and enhanced response handling
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,13 +39,48 @@ interface AITutorModalProps {
     equity?: number;
     fundingHistory?: any[];
     companyValuation?: number;
-    specificContext?: any; // Phase-specific context from GamePhasePanel
+    specificContext?: any;
   };
 }
 
+// Enhanced interface for AI tutoring response
+interface EnhancedAITutoringResponse {
+  explanation?: string;
+  immediateHelp?: string;
+  recommendation?: string;
+  calculation?: {
+    yourCash: number;
+    maxAffordable: number;
+    recommended: number;
+    cashAfter: number;
+  } | null;
+  example?: string;
+  gameApplication?: string;
+  tip?: string;
+  followUpQuestions?: string[];
+  phaseSpecificTips?: string[];
+  concept?: string;
+  suggestions?: string[];
+  examples?: string[];
+}
+
+// Safe string getter helper
+const safeGetString = (value: any, defaultValue = ''): string => {
+  if (value === null || value === undefined) return defaultValue;
+  return String(value);
+};
+
+// Safe array getter helper
+const safeGetArray = (value: any, defaultValue: string[] = []): string[] => {
+  if (!Array.isArray(value)) return defaultValue;
+  return value.filter(item => item != null).map(item => String(item));
+};
+
 // Get phase-specific content helper
-const getPhaseSpecificContent = (phase: string, gameContext: any) => {
-  const specificContext = gameContext.specificContext || {};
+const getPhaseSpecificContent = (phase: string | null | undefined, gameContext: any) => {
+  // FIXED: Add null safety for phase
+  const safePhase = safeGetString(phase, 'unknown');
+  const specificContext = gameContext?.specificContext || {};
   
   const phaseContent: Record<string, any> = {
     production: {
@@ -61,20 +96,20 @@ const getPhaseSpecificContent = (phase: string, gameContext: any) => {
         "Don't spend all your cash on production",
         "Service robots ($110k) are cheapest and sell well",
         "Keep 30% cash reserve for next round",
-        `With $${gameContext.playerCash}, optimal build is ${Math.min(3, specificContext.canAffordQuantity || 0)} robots`
+        `With $${gameContext.playerCash || 0}, optimal build is ${Math.min(3, specificContext.canAffordQuantity || 0)} robots`
       ],
       calculation: {
-        yourCash: gameContext.playerCash,
+        yourCash: gameContext.playerCash || 0,
         costPerRobot: 110000,
-        maxAffordable: Math.floor(gameContext.playerCash / 110000),
-        recommended: Math.min(3, Math.floor(gameContext.playerCash / 110000)),
-        cashAfter: gameContext.playerCash - (Math.min(3, Math.floor(gameContext.playerCash / 110000)) * 110000)
+        maxAffordable: Math.floor((gameContext.playerCash || 0) / 110000),
+        recommended: Math.min(3, Math.floor((gameContext.playerCash || 0) / 110000)),
+        cashAfter: (gameContext.playerCash || 0) - (Math.min(3, Math.floor((gameContext.playerCash || 0) / 110000)) * 110000)
       }
     },
-    r_d: {
+    'r&d': {
       title: "R&D Investment Decision",
       icon: Cog,
-      immediateHelp: `You have $${gameContext.playerCash} for technology. ${specificContext.affordableTech?.length || 0} technologies are within budget.`,
+      immediateHelp: `You have $${gameContext.playerCash || 0} for technology. ${specificContext.affordableTech?.length || 0} technologies are within budget.`,
       recommendation: gameContext.round === 1 
         ? "Start with Battery Optimization ($110k) for efficiency" 
         : "Invest in AI Navigation ($120k) for premium robots",
@@ -82,8 +117,24 @@ const getPhaseSpecificContent = (phase: string, gameContext: any) => {
         "Technologies improve ALL future robots",
         "Battery tech reduces production costs by 10%",
         "AI tech increases sale price by 15%",
-        gameContext.playerCash < 150000 ? "Consider skipping R&D this round" : "Invest in one key technology"
-      ]
+        (gameContext.playerCash || 0) < 150000 ? "Consider skipping R&D this round" : "Invest in one key technology"
+      ],
+      calculation: null
+    },
+    r_d: {
+      title: "R&D Investment Decision",
+      icon: Cog,
+      immediateHelp: `You have $${gameContext.playerCash || 0} for technology. ${specificContext.affordableTech?.length || 0} technologies are within budget.`,
+      recommendation: gameContext.round === 1 
+        ? "Start with Battery Optimization ($110k) for efficiency" 
+        : "Invest in AI Navigation ($120k) for premium robots",
+      tips: [
+        "Technologies improve ALL future robots",
+        "Battery tech reduces production costs by 10%",
+        "AI tech increases sale price by 15%",
+        (gameContext.playerCash || 0) < 150000 ? "Consider skipping R&D this round" : "Invest in one key technology"
+      ],
+      calculation: null
     },
     sales: {
       title: "Sales Strategy Decision",
@@ -99,21 +150,23 @@ const getPhaseSpecificContent = (phase: string, gameContext: any) => {
         "Low demand = may need to discount",
         "Holding inventory costs nothing",
         "Watch competitor sales for pricing cues"
-      ]
+      ],
+      calculation: null
     },
     growth: {
       title: "Growth Investment Decision",
       icon: TrendingUp,
-      immediateHelp: `You have $${gameContext.playerCash} for growth investments.`,
-      recommendation: gameContext.playerCash > 100000
+      immediateHelp: `You have $${gameContext.playerCash || 0} for growth investments.`,
+      recommendation: (gameContext.playerCash || 0) > 100000
         ? "Invest 25% of cash in marketing"
         : "Skip growth this round - preserve cash",
       tips: [
-        `Recommended investment: $${Math.floor(gameContext.playerCash * 0.25)}`,
+        `Recommended investment: $${Math.floor((gameContext.playerCash || 0) * 0.25)}`,
         "Growth investments increase reputation",
         "Higher reputation = better prices",
         "Don't invest more than 30% of cash"
-      ]
+      ],
+      calculation: null
     },
     funding: {
       title: "Funding Strategy Decision",
@@ -127,19 +180,21 @@ const getPhaseSpecificContent = (phase: string, gameContext: any) => {
         "Equity = no repayment but lose ownership",
         "Debt = keep ownership but must repay",
         "Mix funding types for balance"
-      ]
+      ],
+      calculation: null
     }
   };
   
-  // Normalize phase name
-  const normalizedPhase = phase.toLowerCase().replace('&', '_');
+  // FIXED: Normalize phase name safely
+  const normalizedPhase = safePhase.toLowerCase().replace('&', '_').replace('-', '_').replace(/\s+/g, '_');
   
   return phaseContent[normalizedPhase] || {
     title: "Business Decision",
     icon: HelpCircle,
-    immediateHelp: `You're in the ${phase} phase with $${gameContext.playerCash} available.`,
+    immediateHelp: `You're in the ${safePhase} phase with $${gameContext.playerCash || 0} available.`,
     recommendation: "Consider your options carefully",
-    tips: ["Think about cash flow", "Plan ahead", "Watch competitors"]
+    tips: ["Think about cash flow", "Plan ahead", "Watch competitors"],
+    calculation: null
   };
 };
 
@@ -423,6 +478,20 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
 
+  // FIXED: Safe access to AI tutoring response
+  const safeAITutoring: EnhancedAITutoringResponse = aiTutoring ? {
+    explanation: safeGetString(aiTutoring.explanation),
+    immediateHelp: safeGetString((aiTutoring as any).immediateHelp),
+    recommendation: safeGetString((aiTutoring as any).recommendation),
+    calculation: (aiTutoring as any).calculation || null,
+    example: safeGetString(aiTutoring.example),
+    gameApplication: safeGetString(aiTutoring.gameApplication),
+    tip: safeGetString(aiTutoring.tip),
+    followUpQuestions: safeGetArray(aiTutoring.followUpQuestions),
+    phaseSpecificTips: safeGetArray((aiTutoring as any).phaseSpecificTips),
+    concept: safeGetString((aiTutoring as any).concept || concept)
+  } : null;
+
   // Determine if this is a funding-related concept
   const isFundingConcept = [
     'venture-capital-vs-debt',
@@ -431,8 +500,8 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
     'funding-strategy'
   ].includes(concept);
 
-  // Get phase-specific content
-  const phaseContent = getPhaseSpecificContent(gameContext.phase, gameContext);
+  // Get phase-specific content safely
+  const phaseContent = getPhaseSpecificContent(gameContext?.phase, gameContext);
   const PhaseIcon = phaseContent.icon;
 
   // Reset state when modal opens with new concept
@@ -463,9 +532,10 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
 
   // Submit quiz and record learning
   const handleSubmitQuiz = () => {
-    if (!aiTutoring) return;
+    if (!safeAITutoring) return;
     
-    const score = userAnswers.filter(a => a.trim().length > 20).length / aiTutoring.followUpQuestions.length;
+    const questions = safeAITutoring.followUpQuestions || [];
+    const score = userAnswers.filter(a => a?.trim()?.length > 20).length / Math.max(questions.length, 1);
     recordConceptPractice(concept, score > 0.6, 'AI Tutor Quiz');
     
     setShowQuiz(false);
@@ -530,7 +600,7 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">AI tutor is preparing your lesson...</p>
               </div>
-            ) : aiTutoring ? (
+            ) : safeAITutoring ? (
               <AnimatePresence mode="wait">
                 {currentStep === 0 && (
                   <motion.div
@@ -541,7 +611,7 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                     className="space-y-6"
                   >
                     {/* PHASE-SPECIFIC IMMEDIATE HELP */}
-                    {gameContext.phase && gameContext.phase !== 'startup' && (
+                    {gameContext?.phase && gameContext.phase !== 'startup' && (
                       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                         <div className="flex items-center gap-2 mb-2">
                           <PhaseIcon className="text-yellow-600" size={20} />
@@ -550,51 +620,60 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                           </h3>
                         </div>
                         <p className="text-yellow-800 font-medium mb-2">
-                          {phaseContent.immediateHelp}
+                          {safeAITutoring.immediateHelp || phaseContent.immediateHelp}
                         </p>
                         <div className="bg-yellow-100 rounded p-3 mt-2">
                           <p className="text-yellow-900 font-semibold">
-                            👉 Recommendation: {phaseContent.recommendation}
+                            👉 Recommendation: {safeAITutoring.recommendation || phaseContent.recommendation}
                           </p>
                         </div>
-                        <div className="mt-3 space-y-1">
-                          {phaseContent.tips.map((tip: string, i: number) => (
-                            <div key={i} className="flex items-start gap-2">
-                              <CheckCircle className="text-yellow-600 mt-0.5" size={14} />
-                              <span className="text-yellow-800 text-sm">{tip}</span>
-                            </div>
-                          ))}
-                        </div>
+                        {phaseContent.tips && phaseContent.tips.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {phaseContent.tips.map((tip: string, i: number) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <CheckCircle className="text-yellow-600 mt-0.5" size={14} />
+                                <span className="text-yellow-800 text-sm">{tip}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* INTERACTIVE DECISION CALCULATOR for Production Phase */}
-                    {gameContext.phase === 'production' && phaseContent.calculation && (
+                    {gameContext?.phase === 'production' && (safeAITutoring.calculation || phaseContent.calculation) && (
                       <div className="bg-purple-50 rounded-lg p-4">
                         <h4 className="font-semibold text-purple-900 mb-3">Quick Production Calculator</h4>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Your cash:</span>
-                            <span className="font-semibold">${phaseContent.calculation.yourCash?.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Cost per basic robot:</span>
-                            <span>$110,000</span>
-                          </div>
-                          <div className="flex justify-between text-purple-700">
-                            <span>Max you can build:</span>
-                            <span className="font-bold">{phaseContent.calculation.maxAffordable}</span>
-                          </div>
-                          <div className="flex justify-between text-green-700">
-                            <span>Recommended to build:</span>
-                            <span className="font-bold">{phaseContent.calculation.recommended}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Cash after building:</span>
-                            <span className="font-semibold">
-                              ${phaseContent.calculation.cashAfter?.toLocaleString()}
-                            </span>
-                          </div>
+                          {(() => {
+                            const calc = safeAITutoring.calculation || phaseContent.calculation;
+                            return (
+                              <>
+                                <div className="flex justify-between">
+                                  <span>Your cash:</span>
+                                  <span className="font-semibold">${(calc?.yourCash || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Cost per basic robot:</span>
+                                  <span>$110,000</span>
+                                </div>
+                                <div className="flex justify-between text-purple-700">
+                                  <span>Max you can build:</span>
+                                  <span className="font-bold">{calc?.maxAffordable || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-green-700">
+                                  <span>Recommended to build:</span>
+                                  <span className="font-bold">{calc?.recommended || 0}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Cash after building:</span>
+                                  <span className="font-semibold">
+                                    ${(calc?.cashAfter || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
@@ -606,12 +685,12 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                         <h3 className="font-semibold text-blue-900">What is this concept?</h3>
                       </div>
                       <p className="text-gray-700 leading-relaxed">
-                        {aiTutoring.explanation}
+                        {safeAITutoring.explanation || 'Understanding this business concept...'}
                       </p>
                     </div>
 
                     {/* Visual Component for Funding Concepts */}
-                    {isFundingConcept && gameContext.equity && (
+                    {isFundingConcept && gameContext?.equity && (
                       <div className="bg-purple-50 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <PieChart className="text-purple-600" size={20} />
@@ -624,55 +703,76 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                           />
                         )}
                         {concept === 'venture-capital-vs-debt' && (
-                          <FundingComparison cash={gameContext.playerCash} />
+                          <FundingComparison cash={gameContext.playerCash || 0} />
                         )}
                       </div>
                     )}
 
                     {/* Real-world Example */}
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Lightbulb className="text-green-600" size={20} />
-                        <h3 className="font-semibold text-green-900">Real-world Example</h3>
+                    {safeAITutoring.example && (
+                      <div className="bg-green-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Lightbulb className="text-green-600" size={20} />
+                          <h3 className="font-semibold text-green-900">Real-world Example</h3>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">
+                          {safeAITutoring.example}
+                        </p>
                       </div>
-                      <p className="text-gray-700 leading-relaxed">
-                        {aiTutoring.example}
-                      </p>
-                    </div>
+                    )}
 
                     {/* Game Application */}
-                    <div className="bg-purple-50 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="text-purple-600" size={20} />
-                        <h3 className="font-semibold text-purple-900">How this applies to your game</h3>
-                      </div>
-                      <p className="text-gray-700 leading-relaxed">
-                        {aiTutoring.gameApplication}
-                      </p>
-                      
-                      {/* Show specific game stats */}
-                      <div className="mt-3 p-3 bg-purple-100 rounded text-sm">
-                        <div className="grid grid-cols-2 gap-2 text-purple-800">
-                          <div>Current Cash: ${gameContext.playerCash.toLocaleString()}</div>
-                          <div>Round: {gameContext.round}</div>
-                          {gameContext.equity && <div>Your Equity: {gameContext.equity}%</div>}
-                          {gameContext.companyValuation && (
-                            <div>Valuation: ${gameContext.companyValuation.toLocaleString()}</div>
-                          )}
+                    {safeAITutoring.gameApplication && (
+                      <div className="bg-purple-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="text-purple-600" size={20} />
+                          <h3 className="font-semibold text-purple-900">How this applies to your game</h3>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">
+                          {safeAITutoring.gameApplication}
+                        </p>
+                        
+                        {/* Show specific game stats */}
+                        <div className="mt-3 p-3 bg-purple-100 rounded text-sm">
+                          <div className="grid grid-cols-2 gap-2 text-purple-800">
+                            <div>Current Cash: ${(gameContext?.playerCash || 0).toLocaleString()}</div>
+                            <div>Round: {gameContext?.round || 1}</div>
+                            {gameContext?.equity && <div>Your Equity: {gameContext.equity}%</div>}
+                            {gameContext?.companyValuation && (
+                              <div>Valuation: ${gameContext.companyValuation.toLocaleString()}</div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Context-specific tip */}
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <HelpCircle className="text-yellow-600" size={18} />
-                        <span className="font-medium text-yellow-900">Tip for this situation</span>
+                    {safeAITutoring.tip && (
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <HelpCircle className="text-yellow-600" size={18} />
+                          <span className="font-medium text-yellow-900">Tip for this situation</span>
+                        </div>
+                        <p className="text-yellow-800 text-sm">
+                          {safeAITutoring.tip}
+                        </p>
                       </div>
-                      <p className="text-yellow-800 text-sm">
-                        {aiTutoring.tip}
-                      </p>
-                    </div>
+                    )}
+
+                    {/* Phase-specific tips */}
+                    {safeAITutoring.phaseSpecificTips && safeAITutoring.phaseSpecificTips.length > 0 && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Quick Tips</h4>
+                        <ul className="space-y-1">
+                          {safeAITutoring.phaseSpecificTips.map((tip, i) => (
+                            <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center pt-4">
                       <button
@@ -681,13 +781,15 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                       >
                         Got it, thanks!
                       </button>
-                      <button
-                        onClick={() => setCurrentStep(1)}
-                        className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                      >
-                        Test My Understanding
-                        <ArrowRight size={16} />
-                      </button>
+                      {safeAITutoring.followUpQuestions && safeAITutoring.followUpQuestions.length > 0 && (
+                        <button
+                          onClick={() => setCurrentStep(1)}
+                          className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                        >
+                          Test My Understanding
+                          <ArrowRight size={16} />
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -717,7 +819,7 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                     )}
 
                     {/* Follow-up questions */}
-                    {aiTutoring.followUpQuestions.map((question, index) => (
+                    {safeAITutoring?.followUpQuestions && safeAITutoring.followUpQuestions.map((question, index) => (
                       <div key={index} className="bg-gray-50 rounded-lg p-4">
                         <label className="block font-medium text-gray-900 mb-3">
                           {index + 1}. {question}

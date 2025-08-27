@@ -521,23 +521,29 @@ export const useGameStore = create<GameStore>()(
     
     setAITutoring: (response) => {
       if (response) {
-		// Handle the enhanced response structure
-		const formattedResponse = {
-		  explanation: response.explanation || '',
+		// Handle the enhanced response structure // Add safety checks for all properties
+		const safeResponse = {
+		  explanation: response.explanation || 'AI tutor is processing your request...',
 		  example: response.example || response.examples?.[0] || '',
 		  gameApplication: response.gameApplication || response.suggestions?.[0] || '',
 		  tip: response.tip || response.suggestions?.[1] || '',
-		  followUpQuestions: response.followUpQuestions || response.suggestions || [],
-		  immediateHelp: response.immediateHelp,
-		  recommendation: response.recommendation,
-		  calculation: response.calculation,
-		  phaseSpecificTips: response.phaseSpecificTips
+          followUpQuestions: Array.isArray(response.followUpQuestions) 
+            ? response.followUpQuestions 
+			: Array.isArray(response.suggestions) ? response.suggestions : [],
+		  immediateHelp: (response as any).immediateHelp || '',
+		  recommendation: (response as any).recommendation || '',
+		  calculation: (response as any).calculation || null,
+		  phaseSpecificTips: Array.isArray((response as any).phaseSpecificTips)
+			? (response as any).phaseSpecificTips
+			: [],
+		  concept: String((response as any).concept || 'Business Strategy')
 		};
-		set({ aiTutoring: formattedResponse });
+    
+		set({ aiTutoring: safeResponse });
 	  } else {
 		set({ aiTutoring: null });
 	  }
-	},
+}	},
     
     setLoading: (loading) => set({ isLoading: loading }),
     setProcessingMove: (processing) => set({ isProcessingMove: processing }),
