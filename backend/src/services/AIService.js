@@ -1,5 +1,6 @@
 // backend/src/services/AIService.js
 // ENHANCED VERSION - With venture capital and debt funding tutoring
+// Updated with latest OpenAI models (late 2024)
 
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
@@ -11,8 +12,8 @@ class AIService {
       logger.warn('OpenAI API key not configured. AI features will be disabled.');
       this.isEnabled = false;
       this.openai = null; // Don't create OpenAI client
-      this.preferredModel = 'gpt-4';
-      this.fallbackModel = 'gpt-3.5-turbo';
+      this.preferredModel = 'gpt-4o';
+      this.fallbackModel = 'gpt-4o-mini';
       this.currentModel = this.preferredModel;
       return; // Exit constructor early
     }
@@ -22,9 +23,23 @@ class AIService {
       apiKey: process.env.OPENAI_API_KEY
     });
     
-    // Model preference order
-    this.preferredModel = 'gpt-4';
-    this.fallbackModel = 'gpt-3.5-turbo';
+    // UPDATED: Latest model versions
+    // Option 1: Most Capable (Best for complex game logic)
+    this.preferredModel = 'gpt-4o';           // Latest GPT-4 Omni model
+    this.fallbackModel = 'gpt-4o-mini';       // Faster, cheaper alternative
+    
+    // Option 2: Fast & Cost-Effective
+    // this.preferredModel = 'gpt-4o-mini';   // Good balance of speed/cost
+    // this.fallbackModel = 'gpt-3.5-turbo-0125'; // Latest GPT-3.5
+    
+    // Option 3: GPT-4 Turbo (Previous generation, still good)
+    // this.preferredModel = 'gpt-4-turbo-preview';
+    // this.fallbackModel = 'gpt-4-0125-preview';
+    
+    // Option 4: Lowest Cost
+    // this.preferredModel = 'gpt-3.5-turbo-0125';  // Cheapest option
+    // this.fallbackModel = 'gpt-3.5-turbo-0125';    // Same model as fallback
+    
     this.currentModel = this.preferredModel;
     
     this.isEnabled = true;
@@ -32,6 +47,52 @@ class AIService {
     
     // Test connection on startup
     this.testConnection();
+  }
+
+  /**
+   * Get information about available models
+   */
+  getModelInfo() {
+    const modelInfo = {
+      'gpt-4o': {
+        name: 'GPT-4 Omni',
+        context: 128000,
+        knowledge_cutoff: 'October 2023',
+        strengths: 'Most capable, multimodal, best reasoning',
+        cost_per_1M_tokens: { input: '$5.00', output: '$15.00' },
+        speed: 'Fast',
+        best_for: 'Complex game AI, strategic reasoning'
+      },
+      'gpt-4o-mini': {
+        name: 'GPT-4 Omni Mini',
+        context: 128000,
+        knowledge_cutoff: 'October 2023',
+        strengths: 'Good balance, cost-effective, still very smart',
+        cost_per_1M_tokens: { input: '$0.15', output: '$0.60' },
+        speed: 'Very Fast',
+        best_for: 'Most game AI tasks, tutoring, market events'
+      },
+      'gpt-4-turbo-preview': {
+        name: 'GPT-4 Turbo',
+        context: 128000,
+        knowledge_cutoff: 'April 2023',
+        strengths: 'Previous gen, still powerful',
+        cost_per_1M_tokens: { input: '$10.00', output: '$30.00' },
+        speed: 'Fast',
+        best_for: 'Legacy support, proven reliability'
+      },
+      'gpt-3.5-turbo-0125': {
+        name: 'GPT-3.5 Turbo Latest',
+        context: 16385,
+        knowledge_cutoff: 'September 2021',
+        strengths: 'Fastest, cheapest, good for simple tasks',
+        cost_per_1M_tokens: { input: '$0.50', output: '$1.50' },
+        speed: 'Extremely Fast',
+        best_for: 'High volume, simple decisions, fallback'
+      }
+    };
+    
+    return modelInfo[this.currentModel] || { name: this.currentModel };
   }
 
   /**
@@ -61,9 +122,10 @@ class AIService {
       return completion.choices[0].message.content.trim();
 
     } catch (error) {
-      // If GPT-4 fails, try GPT-3.5-turbo
-      if (this.currentModel === this.preferredModel && error.status === 404) {
-        logger.warn(`${this.preferredModel} not available, falling back to ${this.fallbackModel}`);
+      // Handle model not available error
+      if ((error.status === 404 || error.code === 'model_not_found') && 
+          this.currentModel !== this.fallbackModel) {
+        logger.warn(`${this.currentModel} not available, falling back to ${this.fallbackModel}`);
         this.currentModel = this.fallbackModel;
         
         try {
@@ -76,7 +138,7 @@ class AIService {
           return completion.choices[0].message.content.trim();
 
         } catch (fallbackError) {
-          logger.error(`Both models failed. GPT-4 error: ${error.message}, GPT-3.5 error: ${fallbackError.message}`);
+          logger.error(`Both models failed. Primary error: ${error.message}, Fallback error: ${fallbackError.message}`);
           throw fallbackError;
         }
       } else {
@@ -134,7 +196,9 @@ Keep it realistic and educational for business students.`;
 
       const response = await this.makeAIRequest(messages, { 
         max_tokens: 800, 
-        temperature: 0.7 
+        temperature: 0.7,
+        // GPT-4o supports structured outputs
+        response_format: { type: "json_object" }
       });
 
       try {
@@ -146,7 +210,7 @@ Keep it realistic and educational for business students.`;
           throw new Error('Invalid AI response format');
         }
         
-        logger.info(`🤖 AI generated market event: ${marketEvent.title}`);
+        logger.info(`🤖 AI (${this.currentModel}) generated market event: ${marketEvent.title}`);
         return marketEvent;
 
       } catch (parseError) {
@@ -202,7 +266,10 @@ Use encouraging, positive language. Be specific about their current situation. K
         }
       ];
 
-      const explanation = await this.makeAIRequest(messages, { max_tokens: 350, temperature: 0.6 });
+      const explanation = await this.makeAIRequest(messages, { 
+        max_tokens: 350, 
+        temperature: 0.6 
+      });
       
       const response = {
         explanation: explanation,
@@ -220,8 +287,6 @@ Use encouraging, positive language. Be specific about their current situation. K
       return this.getFallbackTutoringResponse(concept);
     }
   }
-  
-  
   
   /**
    * Get relevant real-world examples for concepts
@@ -464,34 +529,45 @@ Use encouraging, positive language. Be specific about their current situation. K
     }
 
     try {
-      logger.info('🧪 Testing OpenAI connection...');
+      logger.info(`🧪 Testing OpenAI connection with ${this.currentModel}...`);
       
       const completion = await this.openai.chat.completions.create({
         model: this.currentModel,
         messages: [
           {
             role: "user",
-            content: "Respond with exactly: 'Connection successful with [model_name]'"
+            content: "Respond with exactly: 'Connection successful'"
           }
         ],
         max_tokens: 20
       });
 
       const response = completion.choices[0].message.content.trim();
-      logger.info(`✅ OpenAI connection test successful: ${response}`);
-      return { success: true, message: response, model: this.currentModel };
+      const modelInfo = this.getModelInfo();
+      logger.info(`✅ OpenAI connection test successful: ${response} with ${modelInfo.name}`);
+      return { 
+        success: true, 
+        message: response, 
+        model: this.currentModel,
+        modelInfo: modelInfo 
+      };
 
     } catch (error) {
       logger.error(`❌ OpenAI connection test failed with ${this.currentModel}:`, error.message);
       
-      // If GPT-4 test fails, try GPT-3.5-turbo
-      if (this.currentModel === this.preferredModel) {
+      // If preferred model test fails, try fallback model
+      if (this.currentModel === this.preferredModel && this.preferredModel !== this.fallbackModel) {
         logger.info('🔄 Testing fallback model...');
         this.currentModel = this.fallbackModel;
         return this.testConnection();
       }
       
-      return { success: false, message: error.message, model: this.currentModel };
+      return { 
+        success: false, 
+        message: error.message, 
+        model: this.currentModel,
+        suggestion: 'Consider using gpt-4o-mini or gpt-3.5-turbo-0125 for better availability' 
+      };
     }
   }
 
@@ -506,13 +582,18 @@ Use encouraging, positive language. Be specific about their current situation. K
    * Get AI service status
    */
   getStatus() {
+    const modelInfo = this.getModelInfo();
     return {
       enabled: this.isEnabled,
       clientInitialized: this.openai !== null,
       currentModel: this.currentModel,
+      currentModelInfo: modelInfo,
       preferredModel: this.preferredModel,
       fallbackModel: this.fallbackModel,
-      apiKeyConfigured: !!process.env.OPENAI_API_KEY
+      apiKeyConfigured: !!process.env.OPENAI_API_KEY,
+      estimatedCostPer1000Requests: this.currentModel === 'gpt-4o' ? '$5-15' : 
+                                     this.currentModel === 'gpt-4o-mini' ? '$0.15-0.60' : 
+                                     '$0.50-1.50'
     };
   }
 
@@ -521,7 +602,8 @@ Use encouraging, positive language. Be specific about their current situation. K
    */
   useFallbackModel() {
     this.currentModel = this.fallbackModel;
-    logger.info(`🔄 Switched to fallback model: ${this.currentModel}`);
+    const modelInfo = this.getModelInfo();
+    logger.info(`🔄 Switched to fallback model: ${this.currentModel} (${modelInfo.name})`);
   }
 
   /**
@@ -529,7 +611,8 @@ Use encouraging, positive language. Be specific about their current situation. K
    */
   resetToPreferredModel() {
     this.currentModel = this.preferredModel;
-    logger.info(`🔄 Reset to preferred model: ${this.currentModel}`);
+    const modelInfo = this.getModelInfo();
+    logger.info(`🔄 Reset to preferred model: ${this.currentModel} (${modelInfo.name})`);
   }
 }
 
