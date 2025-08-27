@@ -1,5 +1,5 @@
 // backend/src/services/AIService.js
-// ENHANCED VERSION - With venture capital and debt funding tutoring
+// ENHANCED VERSION - With phase-specific tutoring and actionable advice
 // Updated with latest OpenAI models (late 2024)
 
 const OpenAI = require('openai');
@@ -23,22 +23,8 @@ class AIService {
       apiKey: process.env.OPENAI_API_KEY
     });
     
-    // UPDATED: Latest model versions
-    // Option 1: Most Capable (Best for complex game logic)
     this.preferredModel = 'gpt-4o';           // Latest GPT-4 Omni model
     this.fallbackModel = 'gpt-4o-mini';       // Faster, cheaper alternative
-    
-    // Option 2: Fast & Cost-Effective
-    // this.preferredModel = 'gpt-4o-mini';   // Good balance of speed/cost
-    // this.fallbackModel = 'gpt-3.5-turbo-0125'; // Latest GPT-3.5
-    
-    // Option 3: GPT-4 Turbo (Previous generation, still good)
-    // this.preferredModel = 'gpt-4-turbo-preview';
-    // this.fallbackModel = 'gpt-4-0125-preview';
-    
-    // Option 4: Lowest Cost
-    // this.preferredModel = 'gpt-3.5-turbo-0125';  // Cheapest option
-    // this.fallbackModel = 'gpt-3.5-turbo-0125';    // Same model as fallback
     
     this.currentModel = this.preferredModel;
     
@@ -149,6 +135,465 @@ class AIService {
   }
 
   /**
+   * Generate personalized tutoring response with phase-specific context
+   */
+  async generateTutoringResponse(concept, context) {
+    if (!this.isEnabled || !this.openai) {
+      return this.getPhaseSpecificFallback(concept, context);
+    }
+
+    try {
+      // Check if we have phase-specific context
+      const hasSpecificContext = context.specificContext && Object.keys(context.specificContext).length > 0;
+      const phase = context.currentPhase || 'general';
+      
+      let prompt = '';
+      
+      if (hasSpecificContext) {
+        // Phase-specific prompt with actionable advice
+        prompt = this.buildPhaseSpecificPrompt(phase, concept, context);
+      } else {
+        // General concept prompt
+        prompt = this.buildGeneralPrompt(concept, context);
+      }
+
+      const messages = [
+        {
+          role: "system", 
+          content: "You are a patient, encouraging AI tutor for a business simulation game. Provide specific, actionable advice using real numbers from the game. Be direct and practical."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ];
+
+      const explanation = await this.makeAIRequest(messages, { 
+        max_tokens: 400, 
+        temperature: 0.6 
+      });
+      
+      // Build phase-specific response
+      if (hasSpecificContext) {
+        return this.buildPhaseSpecificResponse(phase, concept, context, explanation);
+      } else {
+        // General response
+        return {
+          explanation: explanation,
+          example: this.getRelevantExample(concept),
+          gameApplication: this.getPhaseSpecificApplication(phase, context),
+          tip: this.getPhaseSpecificTip(phase, concept, context),
+          followUpQuestions: this.getFollowUpQuestions(concept)
+        };
+      }
+
+    } catch (error) {
+      logger.error('Error generating tutoring response:', error.message);
+      return this.getPhaseSpecificFallback(concept, context);
+    }
+  }
+
+  /**
+   * Build phase-specific prompt for AI
+   */
+  buildPhaseSpecificPrompt(phase, concept, context) {
+    const specific = context.specificContext || {};
+    
+    const phasePrompts = {
+      'production': `The student is in the PRODUCTION PHASE and needs immediate help deciding how many robots to build.
+
+Current situation:
+- Cash available: $${context.playerCash}
+- Production capacity: ${specific.productionCapacity || 10} robots max
+- Already built this round: ${specific.robotsBuiltThisRound || 0}
+- Can afford to build: ${specific.canAffordQuantity || 0} basic robots at $110,000 each
+- Round: ${context.round}
+
+Provide SPECIFIC advice:
+1. Exactly how many robots should they build? (give a number)
+2. Which type of robot is best? (Service robots are cheapest at $110k)
+3. How much cash will they have left?
+4. Why this is the optimal choice
+
+Be very specific with numbers. Don't give ranges, give exact recommendations.`,
+
+      'r&d': `The student is in the R&D PHASE deciding which technology to research.
+
+Current situation:
+- Cash available: $${context.playerCash}
+- Technologies they can afford: ${(specific.affordableTech || []).map(t => `${t.name} ($${t.cost})`).join(', ') || 'None'}
+- Technologies already owned: ${(context.techCount || 0) > 0 ? context.techCount + ' technologies' : 'None'}
+- Round: ${context.round}
+
+Provide SPECIFIC advice:
+1. Which exact technology should they buy? (name it)
+2. If they can't afford any, should they skip?
+3. How will this technology help them?
+4. Cash remaining after purchase?`,
+
+      'sales': `The student is in the SALES PHASE deciding whether to sell robots.
+
+Current situation:
+- Unsold robots: ${specific.unsoldRobots || 0}
+- Robot types: ${(specific.robotTypes || []).join(', ') || 'None'}
+- Market demand: ${specific.marketDemand || 'unknown'}
+- Round: ${context.round}
+
+Provide SPECIFIC advice:
+1. Should they sell all robots or hold some? (give exact number)
+2. What's the market timing consideration?
+3. Expected revenue from selling?
+4. Impact on next round?`,
+
+      'funding': `The student is in the FUNDING PHASE choosing how to raise capital.
+
+Current situation:
+- Current equity ownership: ${specific.currentEquity || context.equity || 100}%
+- Cash available: $${context.playerCash}
+- Round: ${context.round}
+
+Provide SPECIFIC advice:
+1. Should they take equity or debt funding?
+2. How much equity can they safely give up?
+3. What amount should they raise?
+4. Impact on control (staying above 51%)?`,
+
+      'growth': `The student is in the GROWTH PHASE deciding on marketing investment.
+
+Current situation:
+- Cash available: $${context.playerCash}
+- Current reputation: ${specific.reputation || context.reputation || 50}/100
+- Round: ${context.round}
+
+Provide SPECIFIC advice:
+1. How much should they invest? (give exact amount or percentage)
+2. Should they skip to preserve cash?
+3. Expected ROI from the investment?
+4. Cash remaining after investment?`
+    };
+
+    const basePrompt = phasePrompts[phase.toLowerCase()] || phasePrompts['production'];
+    
+    return basePrompt + `\n\nConcept to explain: ${concept}
+Make the explanation relevant to their immediate decision. Use their actual numbers.`;
+  }
+
+  /**
+   * Build general concept prompt
+   */
+  buildGeneralPrompt(concept, context) {
+    return `You are an AI business tutor helping a student (age 12-18) understand business concepts through a robotics company simulation game.
+
+Student needs help with: ${concept}
+
+Current game context:
+- Game phase: ${context.currentPhase || 'startup'}
+- Student's cash: $${context.playerCash || 500000}
+- Current round: ${context.round || 1}
+- Robot count: ${context.robotCount || 0}
+- Technologies owned: ${context.techCount || 0}
+- Current equity: ${context.equity || 100}%
+
+Provide a helpful, encouraging explanation that:
+1. Explains the concept in simple, clear terms
+2. Gives a relatable real-world example 
+3. Shows how it applies to their current game situation
+4. Offers a practical, actionable tip
+5. Encourages continued learning
+
+Use encouraging, positive language. Be specific about their current situation. Keep explanations concise but complete.`;
+  }
+
+  /**
+   * Build phase-specific response structure
+   */
+  buildPhaseSpecificResponse(phase, concept, context, aiExplanation) {
+    const specific = context.specificContext || {};
+    
+    // Generate immediate actionable help
+    const immediateHelp = this.generateImmediateHelp(phase, context);
+    const recommendation = this.generateRecommendation(phase, context);
+    const calculation = this.generateCalculation(phase, context);
+    
+    return {
+      explanation: aiExplanation,
+      immediateHelp: immediateHelp,
+      recommendation: recommendation,
+      calculation: calculation,
+      example: this.getRelevantExample(concept),
+      gameApplication: this.getPhaseSpecificApplication(phase, context),
+      tip: this.getPhaseSpecificTip(phase, concept, context),
+      followUpQuestions: this.getFollowUpQuestions(concept),
+      phaseSpecificTips: this.getPhaseSpecificTips(phase, context)
+    };
+  }
+
+  /**
+   * Generate immediate help based on phase
+   */
+  generateImmediateHelp(phase, context) {
+    const specific = context.specificContext || {};
+    
+    const helpText = {
+      'production': `You can afford to build ${specific.canAffordQuantity || 0} basic robots. You've used ${specific.robotsBuiltThisRound || 0} of ${specific.productionCapacity || 10} capacity.`,
+      'r&d': `You have $${context.playerCash} for technology. ${specific.affordableTech?.length || 0} technologies are within budget.`,
+      'sales': `You have ${specific.unsoldRobots || 0} robots ready to sell. Market demand is ${specific.marketDemand || 'unknown'}.`,
+      'funding': `You currently own ${specific.currentEquity || context.equity || 100}% of your company.`,
+      'growth': `You have $${context.playerCash} available for growth investments.`
+    };
+    
+    return helpText[phase.toLowerCase()] || `You're in ${phase} phase with $${context.playerCash} available.`;
+  }
+
+  /**
+   * Generate specific recommendation
+   */
+  generateRecommendation(phase, context) {
+    const specific = context.specificContext || {};
+    
+    const recommendations = {
+      'production': specific.canAffordQuantity > 5 
+        ? `Build 3-5 Service robots to maintain cash reserves`
+        : specific.canAffordQuantity > 0
+        ? `Build ${Math.min(2, specific.canAffordQuantity)} robots to test the market`
+        : `Skip production this round - save cash for next round`,
+        
+      'r&d': context.playerCash > 150000
+        ? `Invest in Battery Optimization for efficiency`
+        : `Skip R&D this round to preserve cash`,
+        
+      'sales': specific.marketDemand === 'high'
+        ? `Sell all ${specific.unsoldRobots} robots while demand is strong`
+        : `Sell ${Math.max(1, specific.unsoldRobots - 1)} robots, keep 1 for better conditions`,
+        
+      'funding': (specific.currentEquity || 100) > 60
+        ? `Take equity funding - you can safely give up 20%`
+        : `Consider debt to preserve ownership`,
+        
+      'growth': context.playerCash > 100000
+        ? `Invest $${Math.floor(context.playerCash * 0.25)} in marketing`
+        : `Skip growth this round - preserve cash`
+    };
+    
+    return recommendations[phase.toLowerCase()] || 'Consider your options carefully';
+  }
+
+  /**
+   * Generate calculation for decision
+   */
+  generateCalculation(phase, context) {
+    const specific = context.specificContext || {};
+    
+    if (phase.toLowerCase() === 'production') {
+      const recommendedBuild = Math.min(3, specific.canAffordQuantity || 0);
+      return {
+        yourCash: context.playerCash,
+        costPerRobot: 110000,
+        maxAffordable: specific.canAffordQuantity || 0,
+        recommended: recommendedBuild,
+        totalCost: recommendedBuild * 110000,
+        cashAfter: context.playerCash - (recommendedBuild * 110000)
+      };
+    }
+    
+    if (phase.toLowerCase() === 'growth') {
+      const recommendedInvest = Math.floor(context.playerCash * 0.25);
+      return {
+        yourCash: context.playerCash,
+        recommendedInvestment: recommendedInvest,
+        percentageOfCash: 25,
+        cashAfter: context.playerCash - recommendedInvest,
+        expectedReputationGain: '+5-10 points'
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get phase-specific application advice
+   */
+  getPhaseSpecificApplication(phase, context) {
+    const specific = context.specificContext || {};
+    const cash = context.playerCash || 0;
+    
+    const applications = {
+      'production': `With $${cash}, you can build ${Math.floor(cash / 110000)} robots. Build ${Math.min(3, Math.floor(cash / 110000))} to keep reserves.`,
+      'r&d': cash > 150000 ? 
+        `Invest in one technology now to improve all future robots` : 
+        `Skip R&D this round - you need at least $100k for basic tech`,
+      'sales': `Selling robots now will give you cash for next round's production`,
+      'funding': `Choose equity if you need guidance, debt if you want control`,
+      'growth': `Invest 20-30% of cash in marketing for long-term reputation gains`
+    };
+    
+    return applications[phase?.toLowerCase()] || `This helps you make better decisions in the ${phase} phase`;
+  }
+
+  /**
+   * Get phase-specific tip
+   */
+  getPhaseSpecificTip(phase, concept, context) {
+    const specific = context.specificContext || {};
+    const cash = context.playerCash || 0;
+    
+    const tips = {
+      'production': cash < 150000 ? 
+        "Skip production if you can't afford at least one robot" :
+        "Never spend more than 70% of cash on production",
+      'r&d': "Technologies stack - each one makes all robots better",
+      'sales': specific.marketDemand === 'low' ? 
+        "Consider holding inventory when demand is low" :
+        "Sell quickly in high demand for premium prices",
+      'funding': `Never go below 51% equity (you have ${specific.currentEquity || context.equity || 100}%)`,
+      'growth': "Small consistent investments beat one large investment"
+    };
+    
+    return tips[phase?.toLowerCase()] || this.getActionableTip(concept);
+  }
+
+  /**
+   * Get phase-specific tips array
+   */
+  getPhaseSpecificTips(phase, context) {
+    const specific = context.specificContext || {};
+    const cash = context.playerCash || 0;
+    
+    const tipsMap = {
+      'production': [
+        `Don't spend all your cash on robots`,
+        `Service robots ($110k) offer best value`,
+        `Keep at least $50k in reserve`,
+        `You can build ${specific.canAffordQuantity || 0}, but should build ${Math.min(3, specific.canAffordQuantity || 0)}`
+      ],
+      'r&d': [
+        `Technologies improve ALL future robots`,
+        `Battery tech reduces costs by 10%`,
+        `AI tech increases prices by 15%`,
+        cash < 150000 ? `Skip R&D when cash is low` : `Invest in one key technology`
+      ],
+      'sales': [
+        `High demand = 20% price boost`,
+        `Inventory costs nothing to hold`,
+        `Watch competitor moves`,
+        `Sell ${specific.unsoldRobots || 0} robots for ~$${(specific.unsoldRobots || 0) * 150000}`
+      ],
+      'funding': [
+        `Keep 51% to maintain control`,
+        `Equity = no repayment needed`,
+        `Debt = keep ownership but pay interest`,
+        `You can safely give up ${Math.min(20, (specific.currentEquity || 100) - 51)}% equity`
+      ],
+      'growth': [
+        `Invest 20-30% of cash maximum`,
+        `Marketing builds reputation`,
+        `Higher reputation = better prices`,
+        `Skip if cash under $50k`
+      ]
+    };
+    
+    return tipsMap[phase?.toLowerCase()] || [
+      'Plan 2-3 rounds ahead',
+      'Keep cash reserves',
+      'Watch market conditions'
+    ];
+  }
+
+  /**
+   * Get phase-specific fallback when AI is unavailable
+   */
+  getPhaseSpecificFallback(concept, context) {
+    const phase = context.currentPhase || 'general';
+    const specific = context.specificContext || {};
+    
+    // Use existing fallback but enhance with phase context
+    const baseFallback = this.getFallbackTutoringResponse(concept);
+    
+    // Add phase-specific enhancements
+    baseFallback.immediateHelp = this.generateImmediateHelp(phase, context);
+    baseFallback.recommendation = this.generateRecommendation(phase, context);
+    baseFallback.calculation = this.generateCalculation(phase, context);
+    baseFallback.phaseSpecificTips = this.getPhaseSpecificTips(phase, context);
+    
+    return baseFallback;
+  }
+  
+  /**
+   * Get relevant real-world examples for concepts
+   */
+  getRelevantExample(concept) {
+    const examples = {
+      'cash-flow-management': "Tesla carefully manages cash flow to fund both current operations and future R&D investments",
+      'innovation-strategy': "Boston Dynamics invests heavily in R&D to create robots that competitors can't match",
+      'production-planning': "Toyota's 'just-in-time' production system minimizes waste while meeting customer demand",
+      'pricing-strategy': "Apple prices products at premium levels because of their brand value and innovation",
+      'market-analysis': "Amazon studies customer data to predict which products will be popular",
+      'risk-management': "Diversified companies like General Electric spread risk across multiple business areas",
+      'venture-capital-vs-debt': "Uber raised venture capital to grow rapidly without debt, while FedEx used loans to buy delivery trucks",
+      'equity-dilution': "Mark Zuckerberg gave up equity in Facebook to investors but kept control through special voting shares",
+      'debt-financing': "Airlines often use loans to buy expensive planes, paying them off with passenger revenue",
+      'funding-strategy': "SpaceX mixed venture capital with government contracts to fund rocket development",
+      'financial-planning': "Microsoft keeps large cash reserves to weather economic downturns and fund acquisitions",
+      'strategic-planning': "Netflix pivoted from DVDs to streaming when they saw where technology was heading",
+      'sales-strategy': "Amazon started with books but planned to expand into 'everything store' from the beginning",
+      'growth-strategy': "Airbnb invested heavily in marketing to build brand awareness before competitors emerged",
+      'general-strategy': "Netflix pivoted from DVDs to streaming when they saw technology trends changing"
+    };
+    
+    return examples[concept] || examples['general-strategy'];
+  }
+
+  /**
+   * Get actionable tips for concepts
+   */
+  getActionableTip(concept) {
+    const tips = {
+      'cash-flow-management': "Keep at least 20% of your cash as emergency reserves",
+      'innovation-strategy': "Start with cheaper technologies and reinvest profits in advanced research",
+      'production-planning': "Build slightly less than maximum capacity until you understand demand",
+      'pricing-strategy': "Price 10-20% above costs initially, then adjust based on sales results",
+      'market-analysis': "Watch the market demand indicator to time your production",
+      'risk-management': "Diversify your robot types to reduce dependence on one market",
+      'venture-capital-vs-debt': "Choose equity if you need guidance and connections, debt if you want to keep control",
+      'equity-dilution': "Never give up more than 49% total equity to maintain control of your company",
+      'debt-financing': "Only take loans if you can afford monthly payments from your regular income",
+      'funding-strategy': "Mix funding sources - some equity for growth, some debt for assets",
+      'financial-planning': "Plan your cash needs 2-3 rounds ahead to avoid emergency funding",
+      'strategic-planning': "Write down your 3-round plan and adjust as you learn",
+      'sales-strategy': "Sometimes holding inventory for better market conditions pays off",
+      'growth-strategy': "Invest 20-30% of cash in marketing, but skip if under $50k cash",
+      'general-strategy': "Set specific goals each round and track your progress toward them"
+    };
+    
+    return tips[concept] || tips['general-strategy'];
+  }
+
+  /**
+   * Get relevant follow-up questions
+   */
+  getFollowUpQuestions(concept) {
+    const questions = {
+      'cash-flow-management': ["How do loans affect cash flow?", "What's the difference between profit and cash flow?"],
+      'innovation-strategy': ["How do I choose which technologies to research?", "When should I focus on innovation vs. production?"],
+      'production-planning': ["How do I predict customer demand?", "What affects production capacity?"],
+      'pricing-strategy': ["How do competitors affect my pricing?", "What's the relationship between price and demand?"],
+      'market-analysis': ["What economic factors affect robotics demand?", "How do I identify market trends?"],
+      'risk-management': ["What are the biggest risks in the robotics industry?", "How do I balance risk and reward?"],
+      'venture-capital-vs-debt': ["When is venture capital better than loans?", "What are the long-term effects of each funding type?"],
+      'equity-dilution': ["How much equity should founders keep?", "What happens if I lose majority control?"],
+      'debt-financing': ["How do interest rates affect my business?", "When is debt dangerous for a startup?"],
+      'funding-strategy': ["How do I know when to raise money?", "What's the best funding mix for growth?"],
+      'financial-planning': ["How far ahead should I plan financially?", "What are the warning signs of cash problems?"],
+      'strategic-planning': ["How do I adapt my strategy to market changes?", "What makes a business plan successful?"],
+      'sales-strategy': ["When should I sell vs hold inventory?", "How do I maximize revenue per robot?"],
+      'growth-strategy': ["How much should I invest in marketing?", "When should I skip growth investments?"],
+      'general-strategy': ["How do I develop a long-term business plan?", "What makes a strategy successful?"]
+    };
+    
+    return questions[concept] || questions['general-strategy'];
+  }
+
+  /**
    * FIXED: Generate dynamic market events using AI - Updated to work with GameManager context
    */
   async generateMarketEvent(context) {
@@ -197,15 +642,12 @@ Keep it realistic and educational for business students.`;
       const response = await this.makeAIRequest(messages, { 
         max_tokens: 800, 
         temperature: 0.7,
-        // GPT-4o supports structured outputs
         response_format: { type: "json_object" }
       });
 
       try {
-        // Parse AI response
         const marketEvent = JSON.parse(response);
         
-        // Validate required fields
         if (!marketEvent.title || !marketEvent.description) {
           throw new Error('Invalid AI response format');
         }
@@ -223,158 +665,6 @@ Keep it realistic and educational for business students.`;
       logger.error('Error generating AI market event:', error.message);
       return this.getFallbackMarketEvent();
     }
-  }
-
-  /**
-   * Generate personalized tutoring response
-   */
-  async generateTutoringResponse(concept, context) {
-    if (!this.isEnabled || !this.openai) {
-      return this.getFallbackTutoringResponse(concept);
-    }
-
-    try {
-      const prompt = `You are an AI business tutor helping a student (age 12-18) understand business concepts through a robotics company simulation game.
-
-Student needs help with: ${concept}
-
-Current game context:
-- Game phase: ${context.currentPhase || 'startup'}
-- Student's cash: $${context.playerCash || 500000}
-- Current round: ${context.round || 1}
-- Robot count: ${context.robotCount || 0}
-- Technologies owned: ${context.techCount || 0}
-- Current equity: ${context.equity || 100}%
-
-Provide a helpful, encouraging explanation that:
-1. Explains the concept in simple, clear terms
-2. Gives a relatable real-world example 
-3. Shows how it applies to their current game situation
-4. Offers a practical, actionable tip
-5. Encourages continued learning
-
-Use encouraging, positive language. Be specific about their current situation. Keep explanations concise but complete.`;
-
-      const messages = [
-        {
-          role: "system", 
-          content: "You are a patient, encouraging AI tutor that explains business concepts to young students in simple, practical terms. You make learning fun and relatable."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ];
-
-      const explanation = await this.makeAIRequest(messages, { 
-        max_tokens: 350, 
-        temperature: 0.6 
-      });
-      
-      const response = {
-        explanation: explanation,
-        example: this.getRelevantExample(concept),
-        gameApplication: `With your current $${context.playerCash || '500K'} and ${context.robotCount || 0} robots, ${this.getGameApplication(concept, context)}`,
-        tip: this.getActionableTip(concept),
-        followUpQuestions: this.getFollowUpQuestions(concept)
-      };
-
-      logger.info(`✅ AI tutoring response generated with ${this.currentModel} for:`, concept);
-      return response;
-
-    } catch (error) {
-      logger.error('Error generating tutoring response:', error.message);
-      return this.getFallbackTutoringResponse(concept);
-    }
-  }
-  
-  /**
-   * Get relevant real-world examples for concepts
-   */
-  getRelevantExample(concept) {
-    const examples = {
-      'cash-flow-management': "Tesla carefully manages cash flow to fund both current operations and future R&D investments",
-      'innovation-strategy': "Boston Dynamics invests heavily in R&D to create robots that competitors can't match",
-      'production-planning': "Toyota's 'just-in-time' production system minimizes waste while meeting customer demand",
-      'pricing-strategy': "Apple prices products at premium levels because of their brand value and innovation",
-      'market-analysis': "Amazon studies customer data to predict which products will be popular",
-      'risk-management': "Diversified companies like General Electric spread risk across multiple business areas",
-      'venture-capital-vs-debt': "Uber raised venture capital to grow rapidly without debt, while FedEx used loans to buy delivery trucks",
-      'equity-dilution': "Mark Zuckerberg gave up equity in Facebook to investors but kept control through special voting shares",
-      'debt-financing': "Airlines often use loans to buy expensive planes, paying them off with passenger revenue",
-      'funding-strategy': "SpaceX mixed venture capital with government contracts to fund rocket development",
-      'financial-planning': "Microsoft keeps large cash reserves to weather economic downturns and fund acquisitions",
-      'strategic-planning': "Netflix pivoted from DVDs to streaming when they saw where technology was heading",
-      'sales-strategy': "Amazon started with books but planned to expand into 'everything store' from the beginning",
-      'general-strategy': "Netflix pivoted from DVDs to streaming when they saw technology trends changing"
-    };
-    
-    return examples[concept] || examples['general-strategy'];
-  }
-
-  /**
-   * Get game-specific application advice
-   */
-  getGameApplication(concept, context) {
-    const phase = context.currentPhase || 'startup';
-    
-    const applications = {
-      'startup': "this is perfect timing to plan your strategy for the round",
-      'r&d': "you can apply this when deciding which technologies to invest in",
-      'production': "this helps you decide how many robots to build",
-      'sales': "this guides your pricing and sales strategy",
-      'investment': "this informs your financing and growth decisions"
-    };
-    
-    return applications[phase] || applications['startup'];
-  }
-
-  /**
-   * Get actionable tips for concepts
-   */
-  getActionableTip(concept) {
-    const tips = {
-      'cash-flow-management': "Keep at least 20% of your cash as emergency reserves",
-      'innovation-strategy': "Start with cheaper technologies and reinvest profits in advanced research",
-      'production-planning': "Build slightly less than maximum capacity until you understand demand",
-      'pricing-strategy': "Price 10-20% above costs initially, then adjust based on sales results",
-      'market-analysis': "Watch the market demand indicator to time your production",
-      'risk-management': "Diversify your robot types to reduce dependence on one market",
-      'venture-capital-vs-debt': "Choose equity if you need guidance and connections, debt if you want to keep control",
-      'equity-dilution': "Never give up more than 49% total equity to maintain control of your company",
-      'debt-financing': "Only take loans if you can afford monthly payments from your regular income",
-      'funding-strategy': "Mix funding sources - some equity for growth, some debt for assets",
-      'financial-planning': "Plan your cash needs 2-3 rounds ahead to avoid emergency funding",
-      'strategic-planning': "Write down your 3-round plan and adjust as you learn",
-      'sales-strategy': "Sometimes holding inventory for better market conditions pays off",
-      'general-strategy': "Set specific goals each round and track your progress toward them"
-    };
-    
-    return tips[concept] || tips['general-strategy'];
-  }
-
-  /**
-   * Get relevant follow-up questions
-   */
-  getFollowUpQuestions(concept) {
-    const questions = {
-      'cash-flow-management': ["How do loans affect cash flow?", "What's the difference between profit and cash flow?"],
-      'innovation-strategy': ["How do I choose which technologies to research?", "When should I focus on innovation vs. production?"],
-      'production-planning': ["How do I predict customer demand?", "What affects production capacity?"],
-      'pricing-strategy': ["How do competitors affect my pricing?", "What's the relationship between price and demand?"],
-      'market-analysis': ["What economic factors affect robotics demand?", "How do I identify market trends?"],
-      'risk-management': ["What are the biggest risks in the robotics industry?", "How do I balance risk and reward?"],
-      'venture-capital-vs-debt': ["When is venture capital better than loans?", "What are the long-term effects of each funding type?"],
-      'equity-dilution': ["How much equity should founders keep?", "What happens if I lose majority control?"],
-      'debt-financing': ["How do interest rates affect my business?", "When is debt dangerous for a startup?"],
-      'funding-strategy': ["How do I know when to raise money?", "What's the best funding mix for growth?"],
-      'financial-planning': ["How far ahead should I plan financially?", "What are the warning signs of cash problems?"],
-      'strategic-planning': ["How do I adapt my strategy to market changes?", "What makes a business plan successful?"],
-      'sales-strategy': ["When should I sell vs hold inventory?", "How do I maximize revenue per robot?"],
-      'general-strategy': ["How do I develop a long-term business plan?", "What makes a strategy successful?"]
-    };
-    
-    return questions[concept] || questions['general-strategy'];
   }
 
   /**
@@ -506,6 +796,13 @@ Use encouraging, positive language. Be specific about their current situation. K
         tip: "Sometimes holding inventory for better market conditions pays off.",
         followUpQuestions: ["How do I know the right time to sell?", "Should I always sell everything?"]
       },
+      'growth-strategy': {
+        explanation: "Growth strategy focuses on scaling your business through marketing, partnerships, and market expansion. It's about building brand awareness, reputation, and customer loyalty to support long-term success.",
+        example: "Airbnb invested heavily in marketing early to build brand recognition before competitors emerged.",
+        gameApplication: "Invest 20-30% of cash in marketing when you have sufficient reserves.",
+        tip: "Small, consistent growth investments beat sporadic large investments.",
+        followUpQuestions: ["How much should I invest in growth?", "When should I skip growth investments?"]
+      },
       'general-strategy': {
         explanation: "Business strategy is your overall plan for success - how you'll compete, grow, and achieve your goals. It involves making smart decisions about production, pricing, innovation, and resource allocation.",
         example: "Amazon's strategy focuses on customer service and operational efficiency.",
@@ -555,7 +852,6 @@ Use encouraging, positive language. Be specific about their current situation. K
     } catch (error) {
       logger.error(`❌ OpenAI connection test failed with ${this.currentModel}:`, error.message);
       
-      // If preferred model test fails, try fallback model
       if (this.currentModel === this.preferredModel && this.preferredModel !== this.fallbackModel) {
         logger.info('🔄 Testing fallback model...');
         this.currentModel = this.fallbackModel;

@@ -1,5 +1,5 @@
 // frontend/src/components/AITutorModal.tsx
-// ENHANCED VERSION - With visual funding education and interactive examples
+// ENHANCED VERSION - With visual funding education, interactive examples, and phase-specific help
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,7 +18,10 @@ import {
   DollarSign,
   Calculator,
   AlertTriangle,
-  Users
+  Users,
+  Target,
+  Factory,
+  Cog
 } from 'lucide-react';
 import { useGameStore } from '../store/GameStore';
 import { useProgressStore } from '../store/ProgressStore';
@@ -36,8 +39,109 @@ interface AITutorModalProps {
     equity?: number;
     fundingHistory?: any[];
     companyValuation?: number;
+    specificContext?: any; // Phase-specific context from GamePhasePanel
   };
 }
+
+// Get phase-specific content helper
+const getPhaseSpecificContent = (phase: string, gameContext: any) => {
+  const specificContext = gameContext.specificContext || {};
+  
+  const phaseContent: Record<string, any> = {
+    production: {
+      title: "Production Decision Time!",
+      icon: Factory,
+      immediateHelp: `Right now you can afford to build ${specificContext.canAffordQuantity || 0} basic robots. You've built ${specificContext.robotsBuiltThisRound || 0} out of ${specificContext.productionCapacity || 10} capacity this round.`,
+      recommendation: specificContext.canAffordQuantity > 5 
+        ? "Build 3-5 robots to keep cash reserves" 
+        : specificContext.canAffordQuantity > 0
+        ? "Build 1-2 robots to test the market"
+        : "Skip production this round - save for next round",
+      tips: [
+        "Don't spend all your cash on production",
+        "Service robots ($110k) are cheapest and sell well",
+        "Keep 30% cash reserve for next round",
+        `With $${gameContext.playerCash}, optimal build is ${Math.min(3, specificContext.canAffordQuantity || 0)} robots`
+      ],
+      calculation: {
+        yourCash: gameContext.playerCash,
+        costPerRobot: 110000,
+        maxAffordable: Math.floor(gameContext.playerCash / 110000),
+        recommended: Math.min(3, Math.floor(gameContext.playerCash / 110000)),
+        cashAfter: gameContext.playerCash - (Math.min(3, Math.floor(gameContext.playerCash / 110000)) * 110000)
+      }
+    },
+    r_d: {
+      title: "R&D Investment Decision",
+      icon: Cog,
+      immediateHelp: `You have $${gameContext.playerCash} for technology. ${specificContext.affordableTech?.length || 0} technologies are within budget.`,
+      recommendation: gameContext.round === 1 
+        ? "Start with Battery Optimization ($110k) for efficiency" 
+        : "Invest in AI Navigation ($120k) for premium robots",
+      tips: [
+        "Technologies improve ALL future robots",
+        "Battery tech reduces production costs by 10%",
+        "AI tech increases sale price by 15%",
+        gameContext.playerCash < 150000 ? "Consider skipping R&D this round" : "Invest in one key technology"
+      ]
+    },
+    sales: {
+      title: "Sales Strategy Decision",
+      icon: TrendingUp,
+      immediateHelp: `You have ${specificContext.unsoldRobots || 0} robots ready to sell. Market demand is ${specificContext.marketDemand || 'unknown'}.`,
+      recommendation: specificContext.marketDemand === 'high' 
+        ? "Sell all robots while demand is strong" 
+        : specificContext.marketDemand === 'low'
+        ? "Consider keeping 1-2 robots for next round"
+        : "Sell most robots, keep 1 as buffer",
+      tips: [
+        "High demand = 20% price premium",
+        "Low demand = may need to discount",
+        "Holding inventory costs nothing",
+        "Watch competitor sales for pricing cues"
+      ]
+    },
+    growth: {
+      title: "Growth Investment Decision",
+      icon: TrendingUp,
+      immediateHelp: `You have $${gameContext.playerCash} for growth investments.`,
+      recommendation: gameContext.playerCash > 100000
+        ? "Invest 25% of cash in marketing"
+        : "Skip growth this round - preserve cash",
+      tips: [
+        `Recommended investment: $${Math.floor(gameContext.playerCash * 0.25)}`,
+        "Growth investments increase reputation",
+        "Higher reputation = better prices",
+        "Don't invest more than 30% of cash"
+      ]
+    },
+    funding: {
+      title: "Funding Strategy Decision",
+      icon: DollarSign,
+      immediateHelp: `You currently have ${specificContext.currentEquity || gameContext.equity || 100}% equity. Consider your funding needs carefully.`,
+      recommendation: (specificContext.currentEquity || gameContext.equity || 100) > 60
+        ? "You can safely raise equity funding"
+        : "Consider debt to preserve ownership",
+      tips: [
+        `Never go below 51% equity (you have ${specificContext.currentEquity || gameContext.equity || 100}%)`,
+        "Equity = no repayment but lose ownership",
+        "Debt = keep ownership but must repay",
+        "Mix funding types for balance"
+      ]
+    }
+  };
+  
+  // Normalize phase name
+  const normalizedPhase = phase.toLowerCase().replace('&', '_');
+  
+  return phaseContent[normalizedPhase] || {
+    title: "Business Decision",
+    icon: HelpCircle,
+    immediateHelp: `You're in the ${phase} phase with $${gameContext.playerCash} available.`,
+    recommendation: "Consider your options carefully",
+    tips: ["Think about cash flow", "Plan ahead", "Watch competitors"]
+  };
+};
 
 // Visual component for equity dilution
 const EquityVisualizer: React.FC<{ currentEquity: number; scenario?: { give: number; newEquity: number } }> = ({ 
@@ -327,6 +431,10 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
     'funding-strategy'
   ].includes(concept);
 
+  // Get phase-specific content
+  const phaseContent = getPhaseSpecificContent(gameContext.phase, gameContext);
+  const PhaseIcon = phaseContent.icon;
+
   // Reset state when modal opens with new concept
   useEffect(() => {
     if (isOpen) {
@@ -432,6 +540,65 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-6"
                   >
+                    {/* PHASE-SPECIFIC IMMEDIATE HELP */}
+                    {gameContext.phase && gameContext.phase !== 'startup' && (
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <PhaseIcon className="text-yellow-600" size={20} />
+                          <h3 className="font-bold text-yellow-900">
+                            {phaseContent.title}
+                          </h3>
+                        </div>
+                        <p className="text-yellow-800 font-medium mb-2">
+                          {phaseContent.immediateHelp}
+                        </p>
+                        <div className="bg-yellow-100 rounded p-3 mt-2">
+                          <p className="text-yellow-900 font-semibold">
+                            👉 Recommendation: {phaseContent.recommendation}
+                          </p>
+                        </div>
+                        <div className="mt-3 space-y-1">
+                          {phaseContent.tips.map((tip: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <CheckCircle className="text-yellow-600 mt-0.5" size={14} />
+                              <span className="text-yellow-800 text-sm">{tip}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* INTERACTIVE DECISION CALCULATOR for Production Phase */}
+                    {gameContext.phase === 'production' && phaseContent.calculation && (
+                      <div className="bg-purple-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-purple-900 mb-3">Quick Production Calculator</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Your cash:</span>
+                            <span className="font-semibold">${phaseContent.calculation.yourCash?.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Cost per basic robot:</span>
+                            <span>$110,000</span>
+                          </div>
+                          <div className="flex justify-between text-purple-700">
+                            <span>Max you can build:</span>
+                            <span className="font-bold">{phaseContent.calculation.maxAffordable}</span>
+                          </div>
+                          <div className="flex justify-between text-green-700">
+                            <span>Recommended to build:</span>
+                            <span className="font-bold">{phaseContent.calculation.recommended}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Cash after building:</span>
+                            <span className="font-semibold">
+                              ${phaseContent.calculation.cashAfter?.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Main Explanation */}
                     <div className="bg-blue-50 rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -657,47 +824,3 @@ const AITutorModal: React.FC<AITutorModalProps> = ({
 };
 
 export default AITutorModal;
-
-/**
- * EXPLANATION FOR BEGINNERS:
- * 
- * This enhanced AITutorModal component is like having a smart, interactive teacher 
- * that adapts to different types of business concepts. Here's what's new:
- * 
- * 1. VISUAL LEARNING COMPONENTS:
- *    - Equity visualizer shows ownership percentages with colored bars
- *    - Funding comparison displays pros/cons of equity vs debt side-by-side
- *    - Interactive elements help students see immediate impact of decisions
- * 
- * 2. INTERACTIVE EXERCISES:
- *    - Calculation problems for equity dilution and loan interest
- *    - Immediate feedback on answers
- *    - Score tracking for gamification
- * 
- * 3. ENHANCED GAME CONTEXT:
- *    - Shows current equity position
- *    - Displays company valuation
- *    - Tracks funding history
- *    - Relates everything to student's current game situation
- * 
- * 4. FUNDING-SPECIFIC FEATURES:
- *    - Special handling for venture capital concepts
- *    - Equity dilution warnings and visualizations
- *    - Loan repayment calculations
- *    - Control threshold alerts (51% ownership)
- * 
- * 5. IMPROVED LEARNING FLOW:
- *    - Step 1: Visual explanation with real examples
- *    - Step 2: Interactive exercises and questions
- *    - Step 3: Completion with score display
- * 
- * KEY EDUCATIONAL ENHANCEMENTS:
- * - Visual learners benefit from charts and graphics
- * - Kinesthetic learners engage with interactive exercises
- * - Immediate application to their game situation
- * - Real-world business examples remain prominent
- * - Progressive difficulty based on concept complexity
- * 
- * This creates a more engaging and effective learning experience, especially
- * for complex financial concepts that are often abstract for young students.
- */

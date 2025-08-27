@@ -1,5 +1,5 @@
 // frontend/src/components/GamePhasePanel.tsx
-// COMPLETE FIXED VERSION - Bootstrap phase working properly
+// COMPLETE FIXED VERSION - Bootstrap phase working properly with enhanced AI tutoring
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,7 +29,7 @@ import FundingModal from './FundingModal';
 import GrowthPhaseModal from './GrowthPhaseModal';
 
 interface GamePhasePanelProps {
-  phase: string; // Changed from specific types to string to handle both old and new phase names
+  phase: string;
   phaseInfo: {
     phase: string;
     description: string;
@@ -42,7 +42,7 @@ interface GamePhasePanelProps {
   canMakeMove: boolean;
   currentRound: number;
   onMakeMove: (moveData: any) => void;
-  onRequestHelp: (concept: string) => void;
+  onRequestHelp: (concept: string, additionalContext?: any) => void;
   selectedAction: string | null;
   onSelectAction: (action: string | null) => void;
 }
@@ -70,6 +70,38 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
   const normalizedPhase = phase === 'startup' ? 'bootstrap' : phase;
   const isBootstrapPhase = normalizedPhase === 'bootstrap' && currentRound === 1;
   const isFundingPhase = (normalizedPhase === 'bootstrap' && currentRound > 1) || normalizedPhase === 'funding';
+
+  // Calculate production capacity helper
+  const calculateMaxProduction = () => {
+    if (player.productionCapacity) {
+      return player.productionCapacity;
+    }
+    
+    let capacity = currentRound === 1 ? 5 : 10 + ((currentRound - 2) * 5);
+    const playerCash = player.cash || 0;
+    if (playerCash >= 200000) capacity += 2;
+    if (playerCash >= 400000) capacity += 3;
+    if (playerCash >= 600000) capacity += 4;
+    if (playerCash >= 800000) capacity += 5;
+    if (playerCash >= 1000000) capacity += 7;
+    
+    const techCount = player.technologies?.length || 0;
+    capacity += techCount * 2;
+    
+    const fundingRounds = player.fundingRounds?.length || 0;
+    capacity += fundingRounds * 3;
+    
+    if (gameSettings.difficulty === 'beginner') {
+      capacity = Math.floor(capacity * 1.2);
+    } else if (gameSettings.difficulty === 'advanced') {
+      capacity = Math.floor(capacity * 0.9);
+    }
+    
+    const minCapacity = currentRound === 1 ? 5 : 15;
+    const maxCapacity = 100;
+    
+    return Math.max(minCapacity, Math.min(maxCapacity, capacity));
+  };
 
   // Handle funding selection from modal
   const handleFundingSelection = (option: any) => {
@@ -126,6 +158,10 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
       onMakeMove(investMove);
 	}	
 	setShowGrowthModal(false);
+  };
+
+  const handleSkipPhase = () => {
+    onMakeMove({ action: 'skip_growth', data: { reason: 'player_choice' } });
   };
 
   // FIXED: Bootstrap/Startup Phase with proper click handling
@@ -292,6 +328,8 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
       { name: 'Sensor Technology', cost: 115000, benefit: 'Improves awareness and precision' }
     ];
 
+    const affordableTech = technologies.filter(t => t.cost <= player.cash);
+
     return (
       <div className="space-y-4">
         <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
@@ -384,7 +422,16 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
           <div className="flex justify-between items-center">
             <span className="text-blue-100 text-sm">Need help with R&D strategy?</span>
             <button
-              onClick={() => onRequestHelp('innovation-strategy')}
+              onClick={() => onRequestHelp('innovation-strategy', {
+                currentPhase: 'r&d',
+                specificContext: {
+                  availableCash: player.cash,
+                  technologies: technologies,
+                  currentTech: player.technologies || [],
+                  round: currentRound,
+                  affordableTech: affordableTech
+                }
+              })}
               className="text-blue-400 hover:text-blue-300 text-sm underline"
             >
               Ask AI Tutor
@@ -423,48 +470,10 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
     }, 0);
     const totalCost = selectedRobotType ? (selectedRobotType.baseCost + componentCost) * quantity : 0;
 
-    const calculateMaxProduction = () => {
-    // Get capacity from player if it exists (sent from backend)
-     if (player.productionCapacity) {
-       return player.productionCapacity;
-	 }
-    
-    // Otherwise calculate it on frontend
-     let capacity = currentRound === 1 ? 5 : 10 + ((currentRound - 2) * 5);
-    
-    // Scale with cash
-     const playerCash = player.cash || 0;
-     if (playerCash >= 200000) capacity += 2;
-     if (playerCash >= 400000) capacity += 3;
-     if (playerCash >= 600000) capacity += 4;
-     if (playerCash >= 800000) capacity += 5;
-     if (playerCash >= 1000000) capacity += 7;
-    
-    // Scale with technologies
-     const techCount = player.technologies?.length || 0;
-     capacity += techCount * 2;
-    
-    // Scale with funding rounds
-     const fundingRounds = player.fundingRounds?.length || 0;
-     capacity += fundingRounds * 3;
-    
-    // Difficulty adjustment
-     if (gameSettings.difficulty === 'beginner') {
-       capacity = Math.floor(capacity * 1.2);
-     } else if (gameSettings.difficulty === 'advanced') {
-       capacity = Math.floor(capacity * 0.9);
-     }
-    
-    // Set minimums
-     const minCapacity = currentRound === 1 ? 5 : 15;
-     const maxCapacity = 100;
-    
-     return Math.max(minCapacity, Math.min(maxCapacity, capacity));
-    };
-	
-	const maxProduction = calculateMaxProduction();
-	const canProduce = (player.robotsBuiltThisRound || 0) + quantity <= maxProduction;
-	const robotsBuilt = player.robotsBuiltThisRound || 0;
+    const maxProduction = calculateMaxProduction();
+    const canProduce = (player.robotsBuiltThisRound || 0) + quantity <= maxProduction;
+    const robotsBuilt = player.robotsBuiltThisRound || 0;
+    const canAffordQuantity = selectedRobotType ? Math.floor(player.cash / selectedRobotType.baseCost) : 0;
 
     return (
       <div className="space-y-4">
@@ -607,7 +616,17 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
           <div className="flex justify-between items-center">
             <span className="text-blue-100 text-sm">Need production planning help?</span>
             <button
-              onClick={() => onRequestHelp('production-planning')}
+              onClick={() => onRequestHelp('production-planning', {
+                currentPhase: 'production',
+                specificContext: {
+                  availableCash: player.cash,
+                  productionCapacity: maxProduction,
+                  robotsBuiltThisRound: player.robotsBuiltThisRound || 0,
+                  robotTypes: robotTypes,
+                  canAffordQuantity: Math.floor(player.cash / 110000), // cheapest robot
+                  round: currentRound
+                }
+              })}
               className="text-blue-400 hover:text-blue-300 text-sm underline"
             >
               Ask AI Tutor
@@ -748,7 +767,15 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
           <div className="flex justify-between items-center">
             <span className="text-blue-100 text-sm">Need sales strategy help?</span>
             <button
-              onClick={() => onRequestHelp('sales-strategy')}
+              onClick={() => onRequestHelp('sales-strategy', {
+                currentPhase: 'sales',
+                specificContext: {
+                  unsoldRobots: unsoldRobots.length,
+                  robotTypes: unsoldRobots.map(r => r.type),
+                  marketDemand: marketConditions?.demand || 'medium',
+                  round: currentRound
+                }
+              })}
               className="text-blue-400 hover:text-blue-300 text-sm underline"
             >
               Ask AI Tutor
@@ -762,7 +789,7 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
   // Growth Phase - replaces investment phase
   const renderGrowthPhase = () => {
     return (
-      <div className="growth-phase-container space-y-4"> {/* ADDED: growth-phase-container class */}
+      <div className="growth-phase-container space-y-4">
 		<div className="bg-gradient-to-r from-pink-600 to-orange-600 p-4 rounded-lg">
 		  <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2">
             <BarChart3 size={20} />
@@ -800,7 +827,6 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
             </div>
           </div>
         
-          {/* ADDED: Wrapper div with action-buttons class */}
           <div className="action-buttons flex gap-3">
             <button
               onClick={() => setShowGrowthModal(true)}
@@ -814,7 +840,6 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
               Choose Growth Strategy
             </button>
           
-            {/* OPTIONAL: Add a skip button if you want users to be able to skip */}
             <button
               onClick={() => handleSkipPhase && handleSkipPhase()}
               disabled={!canMakeMove}
@@ -829,7 +854,6 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
           </div>
         </div>
       
-        {/* Your existing strategy info box */}
         <div className="bg-pink-500/20 border border-pink-500/30 rounded-lg p-3">
           <h4 className="text-white font-medium mb-2">📈 Growth Strategy</h4>
           <ul className="text-pink-200 text-sm space-y-1">
@@ -847,6 +871,25 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
               </>
             )}
           </ul>
+        </div>
+
+        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+          <div className="flex justify-between items-center">
+            <span className="text-blue-100 text-sm">Need growth strategy help?</span>
+            <button
+              onClick={() => onRequestHelp('growth-strategy', {
+                currentPhase: 'growth',
+                specificContext: {
+                  availableCash: player.cash,
+                  currentRound,
+                  reputation: player.reputation
+                }
+              })}
+              className="text-blue-400 hover:text-blue-300 text-sm underline"
+            >
+              Ask AI Tutor
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -882,6 +925,25 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
               >
                 Choose Funding Strategy
               </button>
+            </div>
+
+            <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <span className="text-blue-100 text-sm">Need funding help?</span>
+                <button
+                  onClick={() => onRequestHelp('venture-capital-vs-debt', {
+                    currentPhase: 'funding',
+                    specificContext: {
+                      currentEquity: player.equity || 100,
+                      availableCash: player.cash,
+                      round: currentRound
+                    }
+                  })}
+                  className="text-blue-400 hover:text-blue-300 text-sm underline"
+                >
+                  Ask AI Tutor
+                </button>
+              </div>
             </div>
           </div>
         ) : renderBootstrapPhase();
@@ -966,7 +1028,13 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
         currentRound={currentRound}
         player={player}
         onSelectFunding={handleFundingSelection}
-        onRequestHelp={onRequestHelp}
+        onRequestHelp={(concept: string) => onRequestHelp(concept, {
+          currentPhase: 'funding',
+          specificContext: {
+            currentEquity: player.equity || 100,
+            availableCash: player.cash
+          }
+        })}
       />
 
       <GrowthPhaseModal
@@ -974,7 +1042,13 @@ const GamePhasePanel: React.FC<GamePhasePanelProps> = ({
         currentRound={currentRound}
         player={player}
         onSelectGrowth={handleGrowthSelection}
-        onRequestHelp={onRequestHelp}
+        onRequestHelp={(concept: string) => onRequestHelp(concept, {
+          currentPhase: 'growth',
+          specificContext: {
+            availableCash: player.cash,
+            reputation: player.reputation
+          }
+        })}
       />
     </>
   );

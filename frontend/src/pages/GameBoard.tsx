@@ -1,5 +1,5 @@
 // frontend/src/pages/GameBoard.tsx
-// FINAL CLEAN VERSION - All debug calls removed
+// FINAL CLEAN VERSION - All debug calls removed with enhanced AI tutoring
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -68,6 +68,7 @@ const GameBoard: React.FC = () => {
   const [showAITutor, setShowAITutor] = useState(false);
   const [showFinancials, setShowFinancials] = useState(false);
   const [tutorConcept, setTutorConcept] = useState<string>('');
+  const [tutorContext, setTutorContext] = useState<any>({});
   const [isInitializing, setIsInitializing] = useState(true);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [debugInfo, setDebugInfo] = useState('Starting initialization...');
@@ -84,7 +85,7 @@ const GameBoard: React.FC = () => {
       case 'production': return '🏭';
       case 'sales': return '📈';
       case 'growth': return '📊';
-      case 'finished': return '🏁';
+      case 'finished': return '🏆';
       default: return '⚡';
     }
   };
@@ -373,8 +374,8 @@ const GameBoard: React.FC = () => {
     }
   };
 
-  // Handle requesting AI help with enhanced context
-  const handleAIHelp = (concept: string) => {
+  // UPDATED: Handle requesting AI help with enhanced context including additional phase-specific context
+  const handleAIHelp = (concept: string, additionalContext?: any) => {
     setTutorConcept(concept);
     setShowAITutor(true);
     
@@ -391,14 +392,18 @@ const GameBoard: React.FC = () => {
         growthEffects: myPlayer.growthEffects || [],
         companyValuation: gameHelpers?.calculateCompanyValuation ? 
           gameHelpers.calculateCompanyValuation(myPlayer) : 
-          myPlayer.cash * 2
+          myPlayer.cash * 2,
+        specificContext: additionalContext?.specificContext || {} // Include phase-specific context
       };
       
+      // Store the full context for the modal
+      setTutorContext(context);
+      
       if (socketService.isConnected()) {
-        console.log('🤖 Requesting real AI help via SocketService');
+        console.log('🤖 Requesting real AI help via SocketService with phase context');
         socketService.requestHelp(currentGame.id, concept, context);
       } else {
-        console.log('📋 Using local AI help (offline mode)');
+        console.log('📋 Using local AI help (offline mode) with phase context');
         requestAIHelp(concept, context);
       }
     }
@@ -534,7 +539,7 @@ const GameBoard: React.FC = () => {
               )}
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              {isMyWin ? '🎉 Congratulations! You Won!' : '🏁 Game Complete!'}
+              {isMyWin ? '🎉 Congratulations! You Won!' : '🏆 Game Complete!'}
             </h1>
             <p className="text-yellow-100">
               {isMyWin ? 
@@ -910,8 +915,8 @@ const GameBoard: React.FC = () => {
               <div className="flex justify-between text-gray-300">
                 <span>Valuation:</span>
                 <span className="text-purple-400">
-                  {gameHelpers?.calculateCompanyValuation ? 
-                    formatCurrency(gameHelpers.calculateCompanyValuation(myPlayer)) :
+                  {gameHelpers?.calculateCompanyValuation ?
+				  formatCurrency(gameHelpers.calculateCompanyValuation(myPlayer)) :
                     formatCurrency(myPlayer.cash * 2)
                   }
                 </span>
@@ -1026,16 +1031,7 @@ const GameBoard: React.FC = () => {
             concept={tutorConcept}
             isOpen={showAITutor}
             onClose={() => setShowAITutor(false)}
-            gameContext={{
-              phase: currentGame.currentPhase,
-              playerCash: myPlayer.cash,
-              round: currentGame.currentRound,
-              equity: myPlayer.equity || 100,
-              fundingHistory: myPlayer.fundingRounds || [],
-              companyValuation: gameHelpers?.calculateCompanyValuation ? 
-                gameHelpers.calculateCompanyValuation(myPlayer) : 
-                myPlayer.cash * 2
-            }}
+            gameContext={tutorContext}
           />
         )}
 
