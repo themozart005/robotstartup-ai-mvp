@@ -306,31 +306,46 @@ const FundingModal: React.FC<FundingModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="border-t border-gray-700 p-6">
+		  <div className="border-t border-gray-700 p-6">
             <div className="flex justify-between items-center">
               <button
-                onClick={() => onRequestHelp('venture-capital-vs-debt')}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-              >
-                <HelpCircle size={16} />
-                Learn about Funding Options
-              </button>
+				onClick={() => onRequestHelp('venture-capital-vs-debt', {
+				  currentPhase: 'funding',
+				  specificContext: {
+				    currentEquity: currentEquity,
+				    availableCash: player.cash,
+				    fundingOptions: fundingOptions.map(opt => ({
+					  type: opt.type,
+					  name: opt.name,
+					  amount: opt.amount,
+					  equityGiven: opt.equityGiven,
+					  interestRate: opt.interestRate
+				    })),
+				    round: currentRound,
+				    valuation: valuationData.valuation
+				  }
+				})}
+				className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+			  >
+				<HelpCircle size={16} />
+				Learn about Funding Options
+			  </button>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleConfirmFunding}
+			  <div className="flex gap-3">
+				<button
+				  onClick={handleConfirmFunding}
                   disabled={!selectedOption}
-                  className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                    selectedOption
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  Confirm Funding Choice
-                </button>
-              </div>
-            </div>
-          </div>
+				  className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+					selectedOption
+					? 'bg-blue-600 hover:bg-blue-700 text-white'
+					: 'bg-gray-600 text-gray-400 cursor-not-allowed'
+				  }`}
+				>
+				  Confirm Funding Choice
+				</button>
+			  </div>
+			</div>
+		  </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

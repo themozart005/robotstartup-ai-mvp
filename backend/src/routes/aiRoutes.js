@@ -1,25 +1,40 @@
 // backend/src/routes/aiRoutes.js
-// Handles AI-related API endpoints
+// Handles AI-related API endpoints with phase-specific tutoring
 
 const express = require('express');
 const router = express.Router();
 
-// Get AI tutoring help for a specific concept
+// Get AI tutoring help for a specific concept with phase-specific context
 router.post('/tutoring', async (req, res) => {
   try {
-    const { concept, context, gameState } = req.body;
+    const { concept, context } = req.body;
     
     if (!concept) {
       return res.status(400).json({ error: 'Concept is required' });
     }
 
-    // Use the AI service from middleware
-    const aiHelp = await req.aiService.generateTutoringResponse(concept, context, gameState);
+    // Log the incoming context for debugging
+    console.log('AI Tutoring Request:', {
+      concept,
+      phase: context?.currentPhase,
+      hasSpecificContext: !!context?.specificContext
+    });
+
+    // Use the AI service from middleware with phase-specific context
+    const aiHelp = await req.aiService.generateTutoringResponse(concept, context);
     
     res.json({
       success: true,
       explanation: aiHelp.explanation,
-      suggestions: aiHelp.suggestions,
+      immediateHelp: aiHelp.immediateHelp,
+      recommendation: aiHelp.recommendation,
+      calculation: aiHelp.calculation,
+      example: aiHelp.example,
+      gameApplication: aiHelp.gameApplication,
+      tip: aiHelp.tip,
+      followUpQuestions: aiHelp.followUpQuestions,
+      phaseSpecificTips: aiHelp.phaseSpecificTips,
+      suggestions: aiHelp.suggestions || [],
       concept: concept
     });
     
@@ -53,12 +68,13 @@ router.post('/market-analysis', async (req, res) => {
   }
 });
 
-// Get AI strategic advice
+// Get AI strategic advice with phase context
 router.post('/strategic-advice', async (req, res) => {
   try {
-    const { gameState, playerData } = req.body;
+    const { gameState, playerData, phaseContext } = req.body;
     
-    const advice = await req.aiService.generateStrategicAdvice(gameState, playerData);
+    // Enhanced strategic advice with phase awareness
+    const advice = await req.aiService.generateStrategicAdvice(gameState, playerData, phaseContext);
     
     res.json({
       success: true,
@@ -77,10 +93,11 @@ router.post('/strategic-advice', async (req, res) => {
 // Health check for AI service
 router.get('/health', async (req, res) => {
   try {
-    const isHealthy = await req.aiService.checkHealth();
+    const status = await req.aiService.getStatus();
     res.json({
-      status: isHealthy ? 'healthy' : 'unhealthy',
+      status: status.enabled ? 'healthy' : 'unhealthy',
       service: 'AI Service',
+      model: status.currentModel,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

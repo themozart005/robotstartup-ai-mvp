@@ -520,19 +520,24 @@ export const useGameStore = create<GameStore>()(
     setPendingMove: (move) => set({ pendingMove: move }),
     
     setAITutoring: (response) => {
-      if (response && 'concept' in response) {
-        const converted: AITutoringResponse = {
-          explanation: response.explanation,
-          example: response.examples?.[0] || '',
-          gameApplication: response.suggestions?.[0] || '',
-          tip: response.suggestions?.[1] || '',
-          followUpQuestions: response.suggestions || []
-        };
-        set({ aiTutoring: converted });
-      } else {
-        set({ aiTutoring: response as AITutoringResponse | null });
-      }
-    },
+      if (response) {
+		// Handle the enhanced response structure
+		const formattedResponse = {
+		  explanation: response.explanation || '',
+		  example: response.example || response.examples?.[0] || '',
+		  gameApplication: response.gameApplication || response.suggestions?.[0] || '',
+		  tip: response.tip || response.suggestions?.[1] || '',
+		  followUpQuestions: response.followUpQuestions || response.suggestions || [],
+		  immediateHelp: response.immediateHelp,
+		  recommendation: response.recommendation,
+		  calculation: response.calculation,
+		  phaseSpecificTips: response.phaseSpecificTips
+		};
+		set({ aiTutoring: formattedResponse });
+	  } else {
+		set({ aiTutoring: null });
+	  }
+	},
     
     setLoading: (loading) => set({ isLoading: loading }),
     setProcessingMove: (processing) => set({ isProcessingMove: processing }),
@@ -652,14 +657,60 @@ export const useGameStore = create<GameStore>()(
         if (!currentGame) return;
 
         const { socketService } = await import('../services/SocketService');
-        socketService.requestHelp(currentGame.id, concept, context);
+        // Log what we're sending
+		console.log('🤖 GameStore: Requesting AI help:', {
+		  concept,
+		  phase: context.currentPhase,
+          hasSpecificContext: !!context.specificContext,
+		  cash: context.playerCash
+		});
+		
+		socketService.requestHelp(currentGame.id, concept, context);
         
         console.log('🤖 GameStore: AI help requested for:', concept);
         toast.success('AI tutor is preparing your explanation...');
       } catch (error) {
         console.error('❌ GameStore: Error requesting AI help:', error);
         toast.error('AI tutor is temporarily unavailable');
-      }
+        
+		// Fallback to local help with phase-specific content
+		const phaseSpecificHelp = {
+          explanation: `Understanding ${concept} in the ${context.currentPhase} phase...`,
+		  immediateHelp: context.specificContext ? 
+            `You have $${context.playerCash} available in ${context.currentPhase} phase.` : 
+            'Consider your current resources.',
+		  recommendation: context.specificContext?.canAffordQuantity !== undefined ? 
+            `Build ${Math.min(3, context.specificContext.canAffordQuantity)} robots` :
+            context.specificContext?.currentEquity !== undefined ?
+            `You can safely give up ${Math.min(20, context.specificContext.currentEquity - 51)}% equity` :
+            'Plan your next move carefully.',
+		  calculation: context.currentPhase === 'production' && context.specificContext ? {
+			yourCash: context.playerCash,
+			maxAffordable: context.specificContext.canAffordQuantity || 0,
+			recommended: Math.min(3, context.specificContext.canAffordQuantity || 0),
+			cashAfter: context.playerCash - (Math.min(3, context.specificContext.canAffordQuantity || 0) * 110000)
+		  } : null,
+		  example: 'Real companies face similar decisions in this phase...',
+		  gameApplication: `Apply this to your current ${context.currentPhase} decision.`,
+		  tip: context.currentPhase === 'production' ? 
+			'Never spend more than 70% of cash on production' :
+			context.currentPhase === 'funding' ?
+			'Keep at least 51% equity for control' :
+			'Make decisions based on your available resources.',
+		  followUpQuestions: ['How does this affect my strategy?', 'What should I do next?'],
+		  phaseSpecificTips: [
+			`Current phase: ${context.currentPhase}`,
+			`Cash available: $${context.playerCash}`,
+			context.specificContext?.canAffordQuantity !== undefined ?
+              `Can afford: ${context.specificContext.canAffordQuantity} robots` :
+              'Plan 2-3 rounds ahead',
+            'Keep some cash in reserve'
+		  ]
+		};
+    
+		set({ aiTutoring: phaseSpecificHelp });
+	  
+	  }
     },
 
     // Utility functions

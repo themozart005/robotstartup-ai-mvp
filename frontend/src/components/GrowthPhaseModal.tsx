@@ -330,32 +330,48 @@ const GrowthPhaseModal: React.FC<GrowthPhaseModalProps> = ({
             </div>
           </div>
 
+          
           {/* Footer Actions */}
-          <div className="border-t border-gray-700 p-6">
-            <div className="flex justify-between items-center">
-              <button
-                onClick={() => onRequestHelp('growth-strategy')}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <HelpCircle size={16} />
-                Growth Strategy Help
-              </button>
+		  <div className="border-t border-gray-700 p-6">
+			<div className="flex justify-between items-center">
+			  <button
+				onClick={() => onRequestHelp('growth-strategy', {
+				  currentPhase: 'growth',
+				  specificContext: {
+					availableCash: player.cash,
+					currentRound,
+					reputation: player.reputation,
+					growthOptions: growthOptions.map(opt => ({
+					  id: opt.id,
+					  name: opt.name,
+					  cost: opt.cost,
+					  affordable: canAfford(opt.cost),
+					  category: opt.category
+					})),
+					recommendedInvestment: Math.floor(player.cash * 0.25)
+				  }
+				})}
+				className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+			  >
+				<HelpCircle size={16} />
+				Growth Strategy Help
+			  </button>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleConfirmGrowth}
-                  disabled={!selectedOption}
-                  className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-                    selectedOption
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {selectedOption?.cost === 0 ? 'Continue' : 'Invest'}
-                </button>
-              </div>
-            </div>
-          </div>
+			  <div className="flex gap-3">
+				<button
+				  onClick={handleConfirmGrowth}
+				  disabled={!selectedOption}
+				  className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+					selectedOption
+					  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+					  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+				  }`}
+				>
+				  {selectedOption?.cost === 0 ? 'Continue' : 'Invest'}
+				</button>
+			  </div>
+			</div>
+		  </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

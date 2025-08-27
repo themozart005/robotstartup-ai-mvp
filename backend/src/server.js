@@ -513,7 +513,7 @@ io.on('connection', (socket) => {
         }
         
         if (result.gameComplete) {
-          logger.info(`🏁 Game ${gameId} completed! Winner: ${result.winner?.name}`);
+          logger.info(`🏆 Game ${gameId} completed! Winner: ${result.winner?.name}`);
           io.to(gameId).emit('game-finished', {
             winner: result.winner,
             finalScores: result.gameState.players,
@@ -531,21 +531,87 @@ io.on('connection', (socket) => {
     }
   });
 
-  // AI tutoring request
+  // ENHANCED AI TUTORING REQUEST WITH PHASE-SPECIFIC CONTEXT
   socket.on('request-help', async (data) => {
     try {
       const { gameId, concept, context } = data;
       
-      logger.info(`🤖 AI tutoring requested for concept: ${concept} by ${socket.playerName || socket.id}`);
+      // Log the phase-specific context for debugging
+      logger.info(`🤖 AI tutoring requested by ${socket.playerName || socket.id}`);
+      logger.info(`📚 Concept: ${concept}`);
+      logger.info(`📍 Phase: ${context?.currentPhase || 'unknown'}`);
+      logger.info(`💰 Player Cash: $${context?.playerCash || 0}`);
       
-      const aiHelp = await aiService.generateTutoringResponse(concept, context);
+      // Log phase-specific details if available
+      if (context?.specificContext) {
+        logger.info(`🎯 Phase-specific context provided:`, {
+          phase: context.currentPhase,
+          hasSpecificContext: true,
+          contextKeys: Object.keys(context.specificContext)
+        });
+        
+        // Log specific phase data for debugging
+        if (context.currentPhase === 'production' && context.specificContext.canAffordQuantity !== undefined) {
+          logger.info(`🏭 Production context: Can afford ${context.specificContext.canAffordQuantity} robots`);
+        }
+        if (context.currentPhase === 'funding' && context.specificContext.currentEquity !== undefined) {
+          logger.info(`💼 Funding context: Current equity ${context.specificContext.currentEquity}%`);
+        }
+        if (context.currentPhase === 'growth' && context.specificContext.reputation !== undefined) {
+          logger.info(`📈 Growth context: Current reputation ${context.specificContext.reputation}`);
+        }
+      }
       
-      socket.emit('ai-tutoring', aiHelp);
+      // Get the current game state for additional context
+      const game = gameId ? gameManager.getGame(gameId) : null;
       
-      logger.info(`✅ AI tutoring provided for concept: ${concept}`);
+      // Enhance context with game data if available
+      const enhancedContext = {
+        ...context,
+        gameRound: game?.currentRound,
+        marketDemand: game?.marketConditions?.demand,
+        playerCount: game?.players?.length
+      };
+      
+      // Generate AI tutoring response with enhanced context
+      const aiHelp = await aiService.generateTutoringResponse(concept, enhancedContext);
+      
+      // Emit the enhanced response
+      socket.emit('ai-tutoring', {
+        ...aiHelp,
+        concept: concept,
+        phaseContext: context?.currentPhase,
+        timestamp: new Date().toISOString()
+      });
+      
+      logger.info(`✅ AI tutoring provided for ${concept} in ${context?.currentPhase || 'general'} phase`);
+      
+      // Track tutoring metrics
+      if (gameManager.trackTutoringRequest) {
+        gameManager.trackTutoringRequest(gameId, concept, context?.currentPhase);
+      }
+      
     } catch (error) {
       logger.error('Error providing AI help:', error);
-      socket.emit('error', { message: 'AI tutor is temporarily unavailable. Please try again.' });
+      
+      // Send a helpful fallback response even on error
+      const fallbackHelp = {
+        explanation: `I can help you understand ${data.concept || 'this concept'}.`,
+        immediateHelp: data.context?.specificContext ? 
+          `You're in the ${data.context.currentPhase} phase with $${data.context.playerCash} available.` :
+          'Let me help you with your current decision.',
+        recommendation: 'Consider your available resources and plan ahead.',
+        tip: 'Make decisions based on your current game state.',
+        followUpQuestions: ['How does this affect my strategy?', 'What should I prioritize?'],
+        error: true,
+        errorMessage: 'AI service temporarily unavailable - showing basic help'
+      };
+      
+      socket.emit('ai-tutoring', fallbackHelp);
+      socket.emit('ai-tutoring-error', { 
+        message: 'AI tutor is temporarily unavailable. Basic guidance provided.',
+        concept: data.concept
+      });
     }
   });
 
@@ -716,6 +782,7 @@ server.listen(PORT, '0.0.0.0', () => {
   logger.info(`🤖 AI Service initialized with OpenAI integration`);
   logger.info(`🔧 Debug routes available at /api/debug/*`);
   logger.info(`📡 GameManager connected to Socket.IO for real-time broadcasting`);
+  logger.info(`📚 Phase-specific AI tutoring enabled for targeted help`);
   logger.info(`🚀 Server ready for both local development and external deployment`);
 });
 

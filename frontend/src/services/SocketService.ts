@@ -706,10 +706,10 @@ class SocketService {
     }
   }
 
-  /**
-   * Request AI help (GameStore compatibility)
-   */
-  requestHelp(concept: string, context?: any) {
+	/**
+	* Request AI help with phase-specific context
+	*/
+  requestHelp(gameId: string, concept: string, context?: any) {
     try {
       if (!this.socket?.connected) {
         safeLog.error('Cannot request help - not connected to server');
@@ -718,10 +718,26 @@ class SocketService {
       }
 
       safeLog.log('🤖 Requesting AI help for concept:', concept);
-      
+      safeLog.log('📋 With context:', {
+        phase: context?.currentPhase,
+        hasSpecificContext: !!context?.specificContext,
+        cash: context?.playerCash,
+        round: context?.round
+	  });
+	  
+	  // Log specific phase details if available
+	  if (context?.specificContext) {
+        safeLog.log('🎯 Phase-specific data:', {
+          phase: context.currentPhase,
+          keys: Object.keys(context.specificContext),
+          ...context.specificContext
+        });
+      }
+	  
       this.socket.emit('request-help', {
+        gameId,
         concept,
-        context
+        context // Full context including specificContext
       });
     } catch (error) {
       safeLog.error('❌ Error requesting help:', error);
@@ -950,8 +966,8 @@ const socketService = {
     socketServiceInstance.on.call(socketServiceInstance, event, callback),
   off: (event: string, callback?: Function) => 
     socketServiceInstance.off.call(socketServiceInstance, event, callback),
-  requestHelp: (concept: string, context?: any) =>
-    socketServiceInstance.requestHelp.call(socketServiceInstance, concept, context),
+  requestHelp: (gameId: string, concept: string, context?: any) =>
+    socketServiceInstance.requestHelp.call(socketServiceInstance, gameId, concept, context),
   leaveGame: (gameId: string) => 
     socketServiceInstance.leaveGame.call(socketServiceInstance, gameId),
   // Debug method to check if all methods are working
