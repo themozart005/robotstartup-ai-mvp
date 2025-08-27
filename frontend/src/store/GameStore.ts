@@ -543,7 +543,7 @@ export const useGameStore = create<GameStore>()(
 	  } else {
 		set({ aiTutoring: null });
 	  }
-}	},
+	},
     
     setLoading: (loading) => set({ isLoading: loading }),
     setProcessingMove: (processing) => set({ isProcessingMove: processing }),
