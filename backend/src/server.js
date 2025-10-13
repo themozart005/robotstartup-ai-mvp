@@ -14,6 +14,17 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
+// Import database connection
+const connectDB = require('./config/database');
+
+// Connect to MongoDB
+connectDB().then(() => {
+  logger.info('🎮 Database ready - Users and games can now be saved!');
+}).catch(err => {
+  logger.error('💥 Database connection failed - app will not start:', err);
+  process.exit(1);
+});
+
 // Import our custom modules
 const gameRoutes = require('./routes/gameRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -25,6 +36,11 @@ const logger = require('./utils/logger');
 // Create Express app (our web server)
 const app = express();
 const server = http.createServer(app);
+
+// ===== STRIPE WEBHOOK ROUTE (MUST BE BEFORE express.json()) =====
+const webhookRoutes = require('./routes/webhookRoutes');
+app.use('/api/webhooks', webhookRoutes);
+// ================================================================
 
 // DEPLOYMENT-READY CORS CONFIGURATION
 const getAllowedOrigins = () => {
@@ -182,6 +198,14 @@ app.post('/api/game/create', async (req, res) => {
     });
   }
 });
+
+// Authentication routes
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
+// Payment routes 
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/payments', paymentRoutes);
 
 // Set up API routes
 app.use('/api/game', gameRoutes);
