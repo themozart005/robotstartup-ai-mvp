@@ -1,102 +1,83 @@
 // backend/src/middleware/auth.js
-// Protects routes - makes sure user is logged in
+// JWT authentication middleware
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const logger = require('../utils/logger');
 
 /**
- * Protect routes - require authentication
+ * Authentication middleware
+ * Verifies JWT token and attaches user to request
  */
-const protect = async (req, res, next) => {
-  let token;
-
-  // Check if token exists in Authorization header
-  if (req.headers.authorization && 
-      req.headers.authorization.startsWith('Bearer')) {
-    // Extract token from "Bearer TOKEN_HERE"
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  // If no token, user is not logged in
-  if (!token) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Not authorized - please log in' 
-    });
-  }
-
+const auth = async (req, res, next) => {
   try {
-    // Verify token is valid
+    // Get token from header
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'No authentication token provided' 
+      });
+    }
+
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user from database (without password)
-    req.user = await User.findById(decoded.id).select('-password');
-    
-    if (!req.user) {
+    // Find user and attach to request
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
       return res.status(401).json({ 
         success: false, 
         message: 'User not found' 
       });
     }
 
-    // Update last active time
-    req.user.lastActive = new Date();
-    await req.user.save();
-
-    // User is authenticated, continue to next middleware
+    // Attach full user object to request
+    req.user = user;
+    
     next();
-
   } catch (error) {
-    logger.error('Auth middleware error:', error);
-    return res.status(401).json({ 
+    console.error('Auth middleware error:', error.message);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token expired' 
+      });
+    }
+    
+    res.status(401).json({ 
       success: false, 
-      message: 'Invalid or expired token - please log in again' 
+      message: 'Authentication failed' 
     });
   }
 };
 
 /**
- * Check if user has access to specific feature
- */
-const checkEntitlement = (feature) => {
-  return (req, res, next) => {
-    // User must be authenticated first
-    if (!req.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Authentication required' 
-      });
-    }
-
-    // Check if user has the feature
-    if (!req.user.hasAccess(feature)) {
-      return res.status(403).json({ 
-        success: false, 
-        message: `This feature requires ${feature}. Please upgrade to Premium!`,
-        upgradeUrl: '/subscription'
-      });
-    }
-
-    next();
-  };
-};
-
-/**
- * Restrict to parent accounts only
+ * Parent-only middleware
+ * Checks if user is a parent or teacher
  */
 const parentOnly = (req, res, next) => {
-  if (!req.user || req.user.accountType !== 'parent') {
-    return res.status(403).json({ 
-      success: false, 
-      message: 'Only parent accounts can perform this action' 
+  if (req.user.accountType !== 'parent' && req.user.accountType !== 'teacher') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Parents or teachers only.'
     });
   }
   next();
 };
 
+// Export both names for compatibility
 module.exports = { 
-  protect, 
-  checkEntitlement, 
+  auth,           // For Stripe routes
+  protect: auth,  // For Auth routes (same function, different name)
   parentOnly 
 };

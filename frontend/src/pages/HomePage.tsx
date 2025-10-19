@@ -2,7 +2,7 @@
 // COMPLETE FIXED VERSION - With proper API endpoints and error handling
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -16,12 +16,16 @@ import {
   BookOpen,
   Rocket,
   Brain,
-  Target
+  Target,
+  LogIn,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
 
-// Import our stores and services
+// Import stores and services
 import { useGameStore } from '../store/GameStore';
 import { useProgressStore } from '../store/ProgressStore';
+import { useAuthStore } from '../store/AuthStore';
 import { socketService } from '../services/SocketService';
 
 const HomePage: React.FC = () => {
@@ -35,6 +39,7 @@ const HomePage: React.FC = () => {
     getAchievementProgress,
     generateProgressReport 
   } = useProgressStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   
   // Local state for game creation
   const [isCreatingGame, setIsCreatingGame] = useState(false);
@@ -173,7 +178,56 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
-      {/* Hero Section */}
+      
+	  {/* User Menu - Top Right */}
+	  {isAuthenticated && user ? (
+		<div className="absolute top-4 right-4 z-50">
+		  <div className="flex items-center gap-3">
+            <Link
+			  to="/account"
+			  className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-all"
+			>
+			  <UserIcon className="text-blue-400" size={18} />
+			  <span className="text-white font-medium">{user.displayName}</span>
+			  {user.subscription.tier !== 'free' && (
+				<span className="px-2 py-0.5 bg-yellow-500 text-yellow-900 text-xs font-bold rounded-full">
+				  {user.subscription.tier.toUpperCase()}
+				</span>
+			  )}
+			</Link>
+			<button
+			  onClick={() => {
+				logout();
+				navigate('/');
+			  }}
+			  className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-full border border-red-500/30 transition-all"
+			  title="Logout"
+			>
+              <LogOut className="text-red-300" size={18} />
+			</button>
+		  </div>
+		</div>
+	  ) : (
+		<div className="absolute top-4 right-4 z-50">
+		  <div className="flex items-center gap-3">
+            <Link
+			  to="/login"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-all"
+            >
+			  <LogIn className="text-blue-400" size={18} />
+			  <span className="text-white font-medium">Log In</span>
+			</Link>
+			<Link
+			  to="/register?type=parent"
+			  className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-full text-white font-semibold transition-all"
+			>
+			  Sign Up
+			</Link>
+		  </div>
+		</div>
+	  )}
+	  
+	  {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}

@@ -27,6 +27,7 @@ connectDB().then(() => {
 
 // Import our custom modules
 const gameRoutes = require('./routes/gameRoutes');
+const stripeRoutes = require('./routes/stripeRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const progressRoutes = require('./routes/progressRoutes');
 const GameManager = require('./services/GameManager');
@@ -209,6 +210,7 @@ app.use('/api/payments', paymentRoutes);
 
 // Set up API routes
 app.use('/api/game', gameRoutes);
+app.use('/api/stripe', stripeRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/progress', progressRoutes);
 

@@ -2,66 +2,80 @@
 // This is the main component that holds our entire app together
 // Think of it as the "main menu" that decides what screen to show
 
+
+// Updated with authentication routes and protected routes
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Import our page components
+// Import page components
 import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import AccountPage from './pages/AccountPage';
 import GameLobby from './pages/GameLobby';
 import GameBoard from './pages/GameBoard';
 import ProgressDashboard from './pages/ProgressDashboard';
 import HelpCenter from './pages/HelpCenter';
 
-// Import our global state management
+// Import protected route component
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Import stores
 import { useGameStore } from './store/GameStore';
 import { useProgressStore } from './store/ProgressStore';
+import { useAuthStore } from './store/AuthStore';
 
-// Import our services
+// Import services
 import { socketService } from './services/SocketService';
 
 // Import global styles
 import './styles/globals.css';
 
-// Main App component - this is like the foundation of a house
 function App() {
-  // Get global state from our stores
+  // Get global state from stores
   const { isConnected, currentGame } = useGameStore();
   const { initializeProgress } = useProgressStore();
+  const { checkAuth, isAuthenticated } = useAuthStore();
 
-  // Set up our app when it first loads
+  // Set up app when it first loads
   useEffect(() => {
+    // Check if user is already logged in
+    checkAuth();
+
     // Initialize progress tracking
     initializeProgress();
 
-    // Connect to our game server
+    // Connect to game server
     socketService.connect();
 
     // Cleanup when app is closed
     return () => {
       socketService.disconnect();
     };
-  }, [initializeProgress]);
+  }, [initializeProgress, checkAuth]);
 
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
-        {/* Background Animation - makes the app feel alive */}
+        {/* Background Animation */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
           <div className="absolute top-40 -left-40 w-80 h-80 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
           <div className="absolute -bottom-40 left-40 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
         </div>
 
-        {/* Connection Status Indicator */}
-        <ConnectionStatus isConnected={isConnected} />
+        {/* Connection Status Indicator (only show if logged in) */}
+        {isAuthenticated && <ConnectionStatus isConnected={isConnected} />}
 
         {/* Main App Content */}
         <div className="relative z-10">
           <AnimatePresence mode="wait">
             <Routes>
-              {/* Home page - where students first land */}
+              {/* Public Routes */}
               <Route 
                 path="/" 
                 element={
@@ -71,43 +85,86 @@ function App() {
                 } 
               />
               
-              {/* Game lobby - where players wait and choose options */}
               <Route 
-                path="/lobby" 
+                path="/login" 
                 element={
                   <PageTransition>
-                    <GameLobby />
+                    <LoginPage />
                   </PageTransition>
                 } 
               />
               
-              {/* Main game board - where the actual game happens */}
               <Route 
-                path="/game/:gameId" 
+                path="/register" 
                 element={
                   <PageTransition>
-                    <GameBoard />
+                    <RegisterPage />
                   </PageTransition>
                 } 
               />
               
-              {/* Progress dashboard - shows learning analytics */}
-              <Route 
-                path="/progress" 
-                element={
-                  <PageTransition>
-                    <ProgressDashboard />
-                  </PageTransition>
-                } 
-              />
-              
-              {/* Help center - tutorials and explanations */}
               <Route 
                 path="/help" 
                 element={
                   <PageTransition>
                     <HelpCenter />
                   </PageTransition>
+                } 
+              />
+
+              {/* Protected Routes (require login) */}
+              <Route 
+                path="/subscription" 
+                element={
+                  <ProtectedRoute>
+                    <PageTransition>
+                      <SubscriptionPage />
+                    </PageTransition>
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/account" 
+                element={
+                  <ProtectedRoute>
+                    <PageTransition>
+                      <AccountPage />
+                    </PageTransition>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/lobby" 
+                element={
+                  <ProtectedRoute>
+                    <PageTransition>
+                      <GameLobby />
+                    </PageTransition>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/game/:gameId" 
+                element={
+                  <ProtectedRoute>
+                    <PageTransition>
+                      <GameBoard />
+                    </PageTransition>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/progress" 
+                element={
+                  <ProtectedRoute>
+                    <PageTransition>
+                      <ProgressDashboard />
+                    </PageTransition>
+                  </ProtectedRoute>
                 } 
               />
               
@@ -117,7 +174,7 @@ function App() {
           </AnimatePresence>
         </div>
 
-        {/* Toast notifications for user feedback */}
+        {/* Toast notifications */}
         <Toaster 
           position="top-right"
           toastOptions={{
@@ -150,7 +207,7 @@ function App() {
   );
 }
 
-// Component that shows if we're connected to the game server
+// Connection status indicator component
 const ConnectionStatus: React.FC<{ isConnected: boolean }> = ({ isConnected }) => {
   return (
     <motion.div
@@ -172,7 +229,7 @@ const ConnectionStatus: React.FC<{ isConnected: boolean }> = ({ isConnected }) =
   );
 };
 
-// Wrapper component that adds smooth transitions between pages
+// Page transition wrapper
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <motion.div
@@ -188,7 +245,6 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 export default App;
-
 /**
  * EXPLANATION FOR BEGINNERS:
  * 

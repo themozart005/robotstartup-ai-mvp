@@ -9,7 +9,7 @@
     "@types/node": "^20.5.0",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
-    "axios": "^1.5.0",
+    "axios": "^1.6.0",
     "clsx": "^2.0.0",
     "framer-motion": "^10.16.1",
     "lucide-react": "^0.263.1",
@@ -36,7 +36,7 @@
     "eslint": "^8.47.0",
     "postcss": "^8.4.29",
     "prettier": "^3.0.2",
-    "vite": "^4.4.9"
+    "vite": "^7.1.10"
   },
   "scripts": {
     "dev": "vite",
