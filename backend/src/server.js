@@ -73,6 +73,50 @@ const getAllowedOrigins = () => {
   return origins;
 };
 
+// Enhanced CORS setup - MORE PERMISSIVE
+const corsOptions = {
+  origin: function (origin, callback) {
+    // In production, allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const allowedOrigins = getAllowedOrigins();
+    
+    // Check if the origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      }
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+
+    if (isAllowed) {
+      console.log('✅ CORS allowed for origin:', origin);
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(null, true); // TEMPORARILY ALLOW ALL - we'll restrict later
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with", "Accept"],
+  exposedHeaders: ["Authorization"],
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
+  maxAge: 86400 // Cache preflight for 24 hours
+};
+
+// Apply CORS middleware BEFORE other middleware
+app.use(cors(corsOptions));
+
+// Explicitly handle OPTIONS requests
+app.options('*', cors(corsOptions));
+
 // Set up Socket.IO for real-time communication
 const io = socketIo(server, {
   cors: {
