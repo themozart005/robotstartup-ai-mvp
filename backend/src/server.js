@@ -44,27 +44,29 @@ app.use('/api/webhooks', webhookRoutes);
 // ================================================================
 
 // DEPLOYMENT-READY CORS CONFIGURATION
+// ===== CORS CONFIGURATION (SINGLE VERSION) =====
+
 const getAllowedOrigins = () => {
   const origins = [
-    "http://localhost:3000",        // Local React dev server
-    "http://localhost:5173",        // Local Vite dev server
-    "http://localhost:4173",        // Local Vite preview
-    "https://localhost:3000",       // Local HTTPS (if used)
-    "https://localhost:5173",       // Local HTTPS Vite
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://localhost:3000",
+    "https://localhost:5173",
   ];
 
-  // Add production frontend URL if specified
+  // Add production frontend URL
   if (process.env.FRONTEND_URL) {
     origins.push(process.env.FRONTEND_URL);
     console.log('🌐 Added production frontend URL:', process.env.FRONTEND_URL);
   }
 
-  // Add Vercel deployment patterns for production
+  // Add Vercel deployment patterns
   if (process.env.NODE_ENV === 'production') {
     origins.push(
-      /^https:\/\/.*\.vercel\.app$/,        // Any Vercel subdomain
-      /^https:\/\/.*\.netlify\.app$/,       // Netlify support
-      /^https:\/\/.*\.railway\.app$/,       // Railway frontend support
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.netlify\.app$/,
+      /^https:\/\/.*\.railway\.app$/,
     );
     console.log('🚀 Added production domain patterns for deployment');
   }
@@ -73,17 +75,31 @@ const getAllowedOrigins = () => {
   return origins;
 };
 
-// Enhanced CORS setup - MORE PERMISSIVE
+// Socket.IO setup with CORS
+const io = socketIo(server, {
+  cors: {
+    origin: getAllowedOrigins(),
+    methods: ["GET", "POST"],
+    credentials: true,
+    allowedHeaders: ["*"]
+  },
+  allowEIO3: true,
+  transports: ['websocket', 'polling'],
+  pingTimeout: process.env.NODE_ENV === 'production' ? 60000 : 20000,
+  pingInterval: process.env.NODE_ENV === 'production' ? 25000 : 10000,
+});
+
+// Express CORS configuration (SINGLE DEFINITION)
 const corsOptions = {
   origin: function (origin, callback) {
-    // In production, allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin
     if (!origin) {
       return callback(null, true);
     }
 
     const allowedOrigins = getAllowedOrigins();
     
-    // Check if the origin is allowed
+    // Check if origin is allowed
     const isAllowed = allowedOrigins.some(allowed => {
       if (typeof allowed === 'string') {
         return allowed === origin;
@@ -99,7 +115,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
-      callback(null, true); // TEMPORARILY ALLOW ALL - we'll restrict later
+      callback(null, true); // Temporarily allow for debugging
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -108,44 +124,12 @@ const corsOptions = {
   exposedHeaders: ["Authorization"],
   optionsSuccessStatus: 200,
   preflightContinue: false,
-  maxAge: 86400 // Cache preflight for 24 hours
+  maxAge: 86400
 };
 
-// Apply CORS middleware BEFORE other middleware
-app.use(cors(corsOptions));
-
-// Explicitly handle OPTIONS requests
-app.options('*', cors(corsOptions));
-
-// Set up Socket.IO for real-time communication
-const io = socketIo(server, {
-  cors: {
-    origin: getAllowedOrigins(),
-    methods: ["GET", "POST"],
-    credentials: true,
-    allowedHeaders: ["*"]
-  },
-  allowEIO3: true,
-  transports: ['websocket', 'polling'],
-  // Production-ready settings
-  pingTimeout: process.env.NODE_ENV === 'production' ? 60000 : 20000,
-  pingInterval: process.env.NODE_ENV === 'production' ? 25000 : 10000,
-});
-
-// Enhanced CORS setup for Express
-const corsOptions = {
-  origin: getAllowedOrigins(),
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "x-requested-with"],
-  // Handle preflight requests
-  optionsSuccessStatus: 200
-};
-
-// Security and middleware setup
+// Security headers
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
-  // Production-ready security headers
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
     directives: {
       defaultSrc: ["'self'"],
@@ -157,8 +141,14 @@ app.use(helmet({
   } : false,
 }));
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' })); // Increase limit for production
+
+// Handle OPTIONS preflight explicitly
+app.options('*', cors(corsOptions));
+
+// Body parser middleware
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Initialize our game services
