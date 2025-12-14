@@ -139,6 +139,53 @@ class AuthService {
       default: return tier;
     }
   }
+
+  // ============================================
+  // CHILD ACCOUNT MANAGEMENT (NEW)
+  // ============================================
+
+  /**
+   * Create a child/student account
+   */
+  async createChild(data: {
+    displayName: string;
+    age: number;
+    grade: string;
+  }): Promise<{ success: boolean; child: User; message: string }> {
+    try {
+      const response = await api.post('/create-child', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create child error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all child accounts for current user
+   */
+  async getMyChildren(): Promise<{ success: boolean; children: User[] }> {
+    try {
+      const response = await api.get('/my-children');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get children error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a child account
+   */
+  async deleteChild(childId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.delete(`/child/${childId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete child error:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
