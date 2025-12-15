@@ -76,7 +76,8 @@ router.post('/register', [
         displayName: user.profile.displayName,
         accountType: user.accountType,
         subscription: user.subscription,
-        entitlements: user.entitlements
+        entitlements: user.entitlements,
+        gameProgress: user.gameProgress
       }
     });
 
@@ -147,7 +148,8 @@ router.post('/register-teacher', [
         displayName: user.profile.displayName,
         accountType: user.accountType,
         subscription: user.subscription,
-        entitlements: user.entitlements
+        entitlements: user.entitlements,
+        gameProgress: user.gameProgress
       }
     });
 
@@ -220,7 +222,8 @@ router.post('/login', [
         displayName: user.profile.displayName,
         accountType: user.accountType,
         subscription: user.subscription,
-        entitlements: user.entitlements
+        entitlements: user.entitlements,
+        gameProgress: user.gameProgress
       }
     });
 
@@ -263,8 +266,8 @@ router.get('/me', protect, async (req, res) => {
 
 /**
  * @route   POST /api/auth/create-child
- * @desc    Parent creates child account (COPPA compliant)
- * @access  Private (Parent only)
+ * @desc    Parent/Teacher creates child/student account (COPPA compliant)
+ * @access  Private (Parent/Teacher only)
  */
 router.post('/create-child', [
   protect,
@@ -278,7 +281,8 @@ router.post('/create-child', [
     next();
   },
   body('displayName').trim().notEmpty().withMessage('Display name required'),
-  body('age').optional().isInt({ min: 5, max: 18 }).withMessage('Age must be between 5 and 18')
+  body('age').optional().isInt({ min: 5, max: 18 }).withMessage('Age must be between 5 and 18'),
+  body('grade').optional().trim()
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -298,122 +302,178 @@ router.post('/create-child', [
     if (childCount >= req.user.entitlements.maxChildren) {
       return res.status(403).json({ 
         success: false, 
-        message: `You can have up to ${req.user.entitlements.maxChildren} child account(s). Upgrade to Premium for more!`,
+        message: `You can have up to ${req.user.entitlements.maxChildren} ${req.user.accountType === 'teacher' ? 'student' : 'child'} account(s). Upgrade for more!`,
         upgradeUrl: '/subscription'
       });
     }
 
-    // Create child/Student account (no email/password needed for child)
+    // Generate unique, readable email for child/student
     const accountType = req.user.accountType === 'teacher' ? 'student' : 'child';
-	const child = new User({
-      email: `${accountType}_${Date.now()}_${parentId}@robostartup.local`,
-      password: Math.random().toString(36),
-      accountType: accountType, // 'student' for teachers, 'child' for parents
+    const sanitizedName = displayName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const childEmail = `${sanitizedName}.${randomSuffix}@robostartup.student`;
+
+    // Generate easy-to-type temporary password
+    const tempPassword = 'Student' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+
+    logger.info(`📝 Creating ${accountType} account: ${childEmail} for ${req.user.email}`);
+
+    // Create child/student account with proper credentials
+    const child = new User({
+      email: childEmail,
+      password: tempPassword, // Will be hashed by User model pre-save hook
+      accountType: accountType,
       parentId,
       profile: { 
         displayName, 
         age: age || null, 
         grade: grade || null 
+      },
+      subscription: {
+        tier: 'free',
+        status: 'active'
+      },
+      entitlements: {
+        advancedMode: false,
+        legendaryAI: false,
+        maxChildren: 0,
+        classroomFeatures: false,
+        teacherDashboard: false
+      },
+      gameProgress: {
+        gamesPlayed: 0,
+        totalScore: 0,
+        bestScore: 0
       }
     });
 
     await child.save();
 
-    logger.info(`👶 Child account created by parent ${parentId}: ${displayName}`);
+    logger.info(`✅ ${accountType} account created: ${childEmail}`);
 
     res.status(201).json({
       success: true,
-      message: `Child account created for ${displayName}!`,
+      message: `${accountType === 'student' ? 'Student' : 'Child'} account created for ${displayName}!`,
       child: {
-        id: child._id,
-        displayName: child.profile.displayName,
-        age: child.profile.age,
-        grade: child.profile.grade,
+        _id: child._id,
+        email: child.email,
+        accountType: child.accountType,
+        profile: child.profile,
+        createdAt: child.createdAt,
         parentId: child.parentId
-      }
+      },
+      tempPassword // CRITICAL: Send password to frontend so teacher can share it
     });
 
   } catch (error) {
-    logger.error('Create child error:', error);
+    logger.error('❌ Create child error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error creating child account' 
+      message: 'Server error creating child account',
+      error: error.message
     });
   }
 });
 
 /**
  * @route   GET /api/auth/my-children
- * @desc    Get all child accounts for logged in parent
- * @access  Private (Parent only)
+ * @desc    Get all child accounts for logged in parent/teacher
+ * @access  Private
  */
-router.get('/my-children', protect, parentOnly, async (req, res) => {
+router.get('/my-children', protect, async (req, res) => {
   try {
+    // Allow both parents and teachers
+    if (req.user.accountType !== 'parent' && req.user.accountType !== 'teacher') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only parents and teachers can access child accounts'
+      });
+    }
+
     const children = await User.find({ 
       parentId: req.user._id 
-    }).select('profile gameProgress createdAt');
+    }).select('email profile gameProgress createdAt accountType');
+
+    logger.info(`📋 Fetching children for ${req.user.email}: ${children.length} found`);
 
     res.json({
       success: true,
       count: children.length,
       maxChildren: req.user.entitlements.maxChildren,
       children: children.map(child => ({
-        id: child._id,
-        displayName: child.profile.displayName,
-        age: child.profile.age,
-        grade: child.profile.grade,
-        gamesPlayed: child.gameProgress.gamesPlayed,
-        bestScore: child.gameProgress.bestScore,
+        _id: child._id,
+        email: child.email,
+        accountType: child.accountType,
+        profile: {
+          displayName: child.profile.displayName,
+          age: child.profile.age,
+          grade: child.profile.grade
+        },
+        gameProgress: {
+          gamesPlayed: child.gameProgress?.gamesPlayed || 0,
+          bestScore: child.gameProgress?.bestScore || 0,
+          totalScore: child.gameProgress?.totalScore || 0
+        },
         createdAt: child.createdAt
       }))
     });
 
   } catch (error) {
-    logger.error('Get children error:', error);
+    logger.error('❌ Get children error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error' 
+      message: 'Server error fetching children' 
     });
   }
 });
 
 /**
  * @route   DELETE /api/auth/child/:childId
- * @desc    Delete a child account
- * @access  Private (Parent only)
+ * @desc    Delete a child/student account
+ * @access  Private (Parent/Teacher only)
  */
-router.delete('/child/:childId', protect, parentOnly, async (req, res) => {
+router.delete('/child/:childId', protect, async (req, res) => {
   try {
     const { childId } = req.params;
 
-    // Find child and verify it belongs to this parent
+    // Allow both parents and teachers
+    if (req.user.accountType !== 'parent' && req.user.accountType !== 'teacher') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only parents and teachers can delete child accounts'
+      });
+    }
+
+    // Find child and verify it belongs to this parent/teacher
     const child = await User.findOne({
       _id: childId,
-      parentId: req.user._id,
-      accountType: 'child'
+      parentId: req.user._id
     });
 
     if (!child) {
       return res.status(404).json({ 
         success: false, 
-        message: 'Child account not found' 
+        message: 'Child/student account not found or you do not have permission' 
       });
     }
 
-    await child.deleteOne();
+    const childName = child.profile.displayName;
 
-    logger.info(`🗑️ Child account deleted by parent ${req.user._id}: ${childId}`);
+    await User.findByIdAndDelete(childId);
+
+    logger.info(`🗑️ Child account deleted by ${req.user.accountType} ${req.user._id}: ${childName} (${childId})`);
 
     res.json({
       success: true,
-      message: 'Child account deleted successfully'
+      message: `${childName}'s account deleted successfully`
     });
 
   } catch (error) {
-    logger.error('Delete child error:', error);
+    logger.error('❌ Delete child error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error' 
+      message: 'Server error deleting account',
+      error: error.message
     });
   }
 });
