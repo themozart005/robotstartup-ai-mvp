@@ -40,7 +40,7 @@ const server = http.createServer(app);
 
 // ===== STRIPE WEBHOOK ROUTE (MUST BE BEFORE express.json()) =====
 const webhookRoutes = require('./routes/webhookRoutes');
-app.use('/api/webhooks', webhookRoutes);
+app.use('/api/webhook', webhookRoutes);
 // ================================================================
 
 // DEPLOYMENT-READY CORS CONFIGURATION
@@ -238,13 +238,10 @@ app.post('/api/game/create', async (req, res) => {
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
-// Payment routes 
-const paymentRoutes = require('./routes/paymentRoutes');
-app.use('/api/payments', paymentRoutes);
 
 // Set up API routes
 app.use('/api/game', gameRoutes);
-app.use('/api/stripe', stripeRoutes);
+app.use('/api/payments', stripeRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/progress', progressRoutes);
 
