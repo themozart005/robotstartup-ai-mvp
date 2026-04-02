@@ -163,7 +163,7 @@ const AccountPage: React.FC = () => {
             <div className="space-y-3">
               {user.subscription.tier === 'free' ? (
                 <button
-                  onClick={() => navigate('/subscription')}
+                  onClick={() => navigate('/pricing')}
                   className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold transition-all"
                 >
                   <Zap size={18} />

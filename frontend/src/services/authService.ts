@@ -124,8 +124,10 @@ class AuthService {
    */
   isSubscribed(user: User | null): boolean {
     if (!user) return false;
-    return user.subscription.tier !== 'free' && 
-           user.subscription.status === 'active';
+    const activeTiers = ['classroom', 'school', 'district', 'premium'];
+    const activeStatuses = ['active', 'trialing'];
+    return activeTiers.includes(user.subscription.tier) &&
+         activeStatuses.includes(user.subscription.status);
   }
 
   /**
@@ -134,8 +136,11 @@ class AuthService {
   getTierDisplayName(tier: string): string {
     switch (tier) {
       case 'free': return 'Free';
-      case 'premium': return 'Premium';
-      case 'classroom': return 'Classroom';
+      case 'trial':      return 'Free Trial';
+	  case 'premium':    return 'Premium';       // legacy — kept for safety
+      case 'classroom':  return 'Classroom License';
+      case 'school':     return 'School License';
+      case 'district':   return 'District License';
       default: return tier;
     }
   }
