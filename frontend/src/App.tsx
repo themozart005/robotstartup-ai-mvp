@@ -15,6 +15,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import PricingPage from './pages/PricingPage';
 import AccountPage from './pages/AccountPage';
 import GameLobby from './pages/GameLobby';
 import GameBoard from './pages/GameBoard';
@@ -123,6 +124,17 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+			  
+			  <Route 
+				path="/pricing" 
+				element={
+				  <ProtectedRoute>
+					 <PageTransition>
+					    <PricingPage />
+					 </PageTransition>
+				  </ProtectedRoute>
+				} 
+			  />
 
               <Route 
                 path="/account" 
