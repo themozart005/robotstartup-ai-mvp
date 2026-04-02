@@ -9,7 +9,7 @@ const router    = express.Router();
 const Stripe    = require('stripe');
 const User      = require('../models/User');
 const Organization = require('../models/Organization');
-const auth      = require('../middleware/auth'); // your existing JWT middleware
+const { protect: auth } = require('../middleware/auth'); // your existing JWT middleware
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
